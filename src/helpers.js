@@ -82,7 +82,9 @@ export function blobTexture() {
 export function contactShadow(w, d, opacity = 1) {
   const m = new THREE.Mesh(
     new THREE.PlaneGeometry(w, d),
-    new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, opacity, depthWrite: false })
+    // polygonOffset: decals sit 5-25mm above ground strips; without the offset
+    // the depth test shimmers at glancing angles (fixed function, no Y-hacking).
+    new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, opacity, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })
   );
   m.rotation.x = -Math.PI / 2;
   m.renderOrder = 1;

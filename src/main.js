@@ -18,6 +18,7 @@ import { createWeather, WIND } from './weather.js';
 import { createDaytime, buildNightSky } from './daytime.js';
 import { createCinematics } from './cinematics.js';
 import { buildUI } from './ui.js';
+import { buildSignage } from './signage.js';
 import {
   buildMapleVar, buildBambooCluster, buildShrub, buildGrassTufts,
   buildVines, buildMoss, swayVegetation,
@@ -52,6 +53,13 @@ upgradeHero(heroGroup, { nageshiY: 2.2, eaveY: 3.7, doorX: arch.openBayX });
 const town = buildTown({ scene, heroGroup });
 const det = buildDetails(town);
 scene.add(det.group);
+
+// TSUKIMORI identity: physical 3D sign + studio plaque (slots verified clear
+// of LAYOUT lots, lamps, poles, drains, puddles, paths and shot sightlines)
+buildSignage(scene, M, {
+  signPos: [6.5, 0, 14.5], signRy: -0.5,
+  plaquePos: [1.0, 0, 9.7], plaqueRy: -0.35,
+});
 
 // pond relocated to the south garden (v1 spot sits under the main street)
 const pond = buildPond(M);

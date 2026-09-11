@@ -4,8 +4,11 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // Opening cinematic 3/4 exterior framing; damped orbit, zoom limits,
 // polar clamp keeps the camera above ground.
 export function buildCamera(renderer) {
+  // near 0.3 (was 0.1): 0.1/200 depth ratio shimmered on 5-25mm ground
+  // decals at street-level glancing angles. 0.3/160 keeps interiors (≥0.5m)
+  // and moon/stars (≤120) intact while ~4x-ing depth precision.
   const camera = new THREE.PerspectiveCamera(
-    45, window.innerWidth / window.innerHeight, 0.1, 200
+    45, window.innerWidth / window.innerHeight, 0.3, 160
   );
   camera.position.set(12.5, 7.0, 15.5);
 

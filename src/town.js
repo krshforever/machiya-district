@@ -126,11 +126,44 @@ export function buildTown({ scene, heroGroup = null } = {}) {
 
 function _groundMats() {
   const c = (hex, r = 0.95) => new THREE.MeshStandardMaterial({ color: hex, roughness: r });
-  return {
+  // tonal noise breaks up flat procedural repetition (128px canvas, tiled).
+  // Same material count, same strips — purely surface variation.
+  const out = {
     soil: c(0x5c5145), street: c(0x8f8a7d, 0.9), dirt: c(0x77644e),
     stonePath: c(0x9a9a94), garden: c(0x5f6b4a, 1.0), gravel: c(0xa09a88),
     edging: c(0x7d7d78),
   };
+  for (const [k, m] of Object.entries(out)) {
+    if (k === 'edging') continue;
+    m.map = _noiseTex(k);
+    m.needsUpdate = true;
+  }
+  return out;
+}
+
+// deterministic tonal-noise texture per ground zone (seeded by name hash)
+const _noiseCache = {};
+function _noiseTex(name) {
+  if (_noiseCache[name]) return _noiseCache[name];
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const R = (() => { let a = h || 1; return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; })();
+  const s = 128, cv = document.createElement('canvas');
+  cv.width = cv.height = s;
+  const x = cv.getContext('2d');
+  x.fillStyle = '#ffffff'; x.fillRect(0, 0, s, s);
+  for (let i = 0; i < 900; i++) {
+    const v = 205 + Math.floor(R() * 50); // white multiplier noise: keeps hue, varies tone
+    x.fillStyle = `rgb(${v},${v},${v})`;
+    x.globalAlpha = 0.5;
+    x.fillRect(R() * s, R() * s, 1 + R() * 2.5, 1 + R() * 2.5);
+  }
+  const t = new THREE.CanvasTexture(cv);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(8, 8);
+  t.colorSpace = THREE.SRGBColorSpace;
+  _noiseCache[name] = t;
+  return t;
 }
 
 function _stoneWalls(R, gm) {

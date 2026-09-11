@@ -101,7 +101,7 @@ export function buildDetails({ lampPositions = [], polePositions = [] } = {}) {
   {
     const vm = new THREE.Mesh(BOX(1.0, 1.9, 0.7), new THREE.MeshStandardMaterial({ color: 0xb8332a, roughness: 0.4, metalness: 0.3 }));
     vm.position.set(17.9, 0.95, 10.6); vm.castShadow = true; g.add(vm);
-    const stripM = new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0xbfe6ff, emissiveIntensity: 1.2 });
+    const stripM = new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0xbfe6ff, emissiveIntensity: 1.2, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
     const strip = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 1.2), stripM);
     strip.position.set(17.9, 1.0, 10.24); strip.rotation.y = Math.PI; g.add(strip);
     g.userData.vendGlow = stripM;

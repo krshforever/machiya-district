@@ -38,7 +38,7 @@ export function createWeather({ scene, pondWaterMats = [], wetMats = [] } = {}) 
     m.userData.ph = R(); grp.add(m); splashes.push(m);
   }
   // ---- puddles: flat circles near drains, opacity/env-driven ----
-  const pudM = new THREE.MeshStandardMaterial({ color: 0x20262c, roughness: 0.05, metalness: 0.7, transparent: true, opacity: 0 });
+  const pudM = new THREE.MeshStandardMaterial({ color: 0x20262c, roughness: 0.05, metalness: 0.7, transparent: true, opacity: 0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   const puddles = [];
   for (const [x, z, r] of [[-5.9, 9.6, 1.2], [4, 9.4, 1.5], [12, 9.7, 1.0], [-12, 9.5, 1.1], [0, 4.2, 0.9]]) {
     const p = new THREE.Mesh(new THREE.CircleGeometry(r, 20), pudM);

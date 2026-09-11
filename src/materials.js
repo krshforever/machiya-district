@@ -36,15 +36,22 @@ function woodDraw(dark) {
     const streak = dark ? '#2a1d12' : '#6e5233';
     const hi = dark ? '#54402c' : '#a37f52';
     g.fillStyle = base; g.fillRect(0, 0, s, s);
-    for (let i = 0; i < 90; i++) {
+    // pass 1: long directional grain streaks
+    for (let i = 0; i < 130; i++) {
       const y = rnd() * s;
       g.strokeStyle = rnd() < 0.3 ? hi : streak;
-      g.globalAlpha = 0.12 + rnd() * 0.22;
+      g.globalAlpha = 0.14 + rnd() * 0.24;
       g.lineWidth = 0.6 + rnd() * 2.2;
       g.beginPath();
       g.moveTo(0, y);
       for (let x = 0; x <= s; x += 16) g.lineTo(x, y + Math.sin(x * 0.05 + i) * 2.5);
       g.stroke();
+    }
+    // pass 2: fine dark pores + occasional weathering speckle near base tone
+    for (let i = 0; i < 420; i++) {
+      g.fillStyle = streak;
+      g.globalAlpha = 0.10 + rnd() * 0.12;
+      g.fillRect(rnd() * s, rnd() * s, 1 + rnd() * 1.5, 1);
     }
     g.globalAlpha = 0.5;
     for (let i = 0; i < 7; i++) { // knots

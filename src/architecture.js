@@ -39,7 +39,7 @@ export function buildArchitecture(M) {
 
   // --- ground shadow blob under house ---
   const blob = contactShadow(w + 3.4, d + 3.6, 0.9);
-  blob.position.set(0, 0.02, 0);
+  blob.position.set(0, 0.03, 0);
   g.add(blob);
 
   // --- stone base (kame-ishi style footings, instanced rough stones) ---

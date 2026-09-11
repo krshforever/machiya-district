@@ -13,7 +13,7 @@ export function buildUI({ daytime, weather, cine, hudEl }) {
     #district-ui .row{margin:3px 0} #district-ui .hd{opacity:.75;letter-spacing:.08em;font-size:10px}
     #district-ui.min .bd{display:none}
   </style>
-  <div class="hd">町 DISTRICT — <span id="du-state">DAY · clear · orbit</span> <button id="du-min">–</button></div>
+  <div class="hd">TSUKIMORI 月森 — <span id="du-state">DAY · clear · orbit</span> <button id="du-min">–</button></div>
   <div class="bd">
     <div class="row" id="du-time"></div>
     <div class="row" id="du-wx"></div>

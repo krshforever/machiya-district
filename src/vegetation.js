@@ -63,6 +63,10 @@ export function buildBamboo(M, baseX, baseZ) {
     culm.position.set(cx, 0, cz);
     culm.rotation.set(Math.cos(leanDir) * lean, 0, Math.sin(leanDir) * lean);
     culm.userData.phase = rnd() * 6.28;
+    // base pose snapshot: update() sets ABSOLUTE rotation (framerate-independent).
+    // The old `+=` form integrated sin(t) per frame — drift that varied with fps.
+    culm.userData.baseRX = culm.rotation.x;
+    culm.userData.baseRZ = culm.rotation.z;
     culms.push(culm);
     g.add(culm);
   }
@@ -96,14 +100,14 @@ export function buildBamboo(M, baseX, baseZ) {
   }
 
   const blob = contactShadow(3.2, 3.2, 0.5);
-  blob.position.set(baseX, 0.025, baseZ);
+  blob.position.set(baseX, 0.035, baseZ);
   g.add(blob);
 
   function update(t) {
-    culms.forEach(c => {
-      c.rotation.x += Math.sin(t * 0.9 + c.userData.phase) * 0.0006;
-      c.rotation.z += Math.cos(t * 0.7 + c.userData.phase) * 0.0006;
-    });
+    for (const c of culms) {
+      c.rotation.x = c.userData.baseRX + Math.sin(t * 0.9 + c.userData.phase) * 0.02;
+      c.rotation.z = c.userData.baseRZ + Math.cos(t * 0.7 + c.userData.phase) * 0.02;
+    }
   }
   return { group: g, update };
 }
@@ -185,7 +189,7 @@ export function buildMaple(M, baseX, baseZ) {
 
   g.position.set(baseX, 0, baseZ);
   const blob = contactShadow(3.4, 3.4, 0.5);
-  blob.position.y = 0.025;
+  blob.position.y = 0.035;
   g.add(blob);
 
   function update(t) {

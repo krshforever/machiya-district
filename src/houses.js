@@ -188,7 +188,9 @@ export function generateHouse(p = {}) {
       const pm = new THREE.MeshStandardMaterial({ color: 0xf3ecd9, roughness: 0.9, emissive: 0xffc873, emissiveIntensity: 0 });
       glowMats.push(pm);
       const paper = new THREE.Mesh(new THREE.PlaneGeometry(ww, wh), pm);
-      paper.position.set(cx, (sill + head) / 2, d / 2 + 0.065); winGroup.add(paper);
+      // +0.072: clear of the frame face (+0.055) AND the lattice-bar backs
+      // (+0.065). The old +0.065 sat exactly coplanar with every bar back.
+      paper.position.set(cx, (sill + head) / 2, d / 2 + 0.072); winGroup.add(paper);
       const latM = Mwood();
       const vBars = 4, hBars = 3;
       for (let i = 1; i < vBars; i++) {
@@ -200,8 +202,10 @@ export function generateHouse(p = {}) {
         b.position.set(cx, sill + (wh * i) / hBars, d / 2 + 0.08); winGroup.add(b);
       }
     } else { // lattice + dark glass behind
+      // +0.068: 13mm proud of the solid frame face (+0.055, was exactly
+      // coplanar and fighting it), nested inside the lattice-bar depth.
       const gl = new THREE.Mesh(new THREE.PlaneGeometry(ww, wh), Mglass());
-      gl.position.set(cx, (sill + head) / 2, d / 2 + 0.055); winGroup.add(gl);
+      gl.position.set(cx, (sill + head) / 2, d / 2 + 0.068); winGroup.add(gl);
       const latM = Mwood();
       for (let i = 0; i <= 5; i++) {
         const b = new THREE.Mesh(new THREE.BoxGeometry(0.05, wh, 0.04), latM);
@@ -289,7 +293,7 @@ export function generateHouse(p = {}) {
       const lz = -slopeLen / 2 + 0.2 + r * 0.34;
       // local slab coords -> world: same rotation as the slab above, then translate
       const v = new THREE.Vector3(lx, 0.1 + (R() - 0.5) * 0.012, lz).applyEuler(new THREE.Euler(s > 0 ? pitch : -pitch, 0, 0));
-      tileXf.push({ p: [v.x, v.y + cy, v.z + cz], ry: (R() - 0.5) * 0.03, tone: 0.85 + R() * 0.3 });
+      tileXf.push({ p: [v.x, v.y + cy, v.z + cz], ry: (R() - 0.5) * 0.03, tone: 0.80 + R() * 0.40 });
     }
   }
   const slabMesh = new THREE.Mesh(mergeGeometries(slabG, false), new THREE.MeshStandardMaterial({ color: 0x2c2c30, roughness: 0.9 }));
