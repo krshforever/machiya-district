@@ -294,6 +294,36 @@ export function buildUI(opts) {
       } catch (e) {}
     });
   } catch (e) {}
+  // Local track picker: play the visitor's own mp3/m4a/ogg/wav through the
+  // diegetic radio. File never leaves this browser (object URL only).
+  var fileBtn = mk('button', 'tsuki-seg', '+ ADD TRACK');
+  try { fileBtn.title = 'Play your own audio file through the village radio'; } catch (e) {}
+  auRow.appendChild(fileBtn);
+  var fileInput = null;
+  try {
+    fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'audio/*,.mp3,.m4a,.ogg,.wav,.flac';
+    fileInput.style.display = 'none';
+    document.body.appendChild(fileInput);
+    fileInput.addEventListener('change', function () {
+      try {
+        var f = fileInput.files && fileInput.files[0];
+        if (!f || !audio || typeof audio.loadCustom !== 'function') return;
+        var url = URL.createObjectURL(f);
+        if (audio.loadCustom(url, f.name.replace(/\.[^.]+$/, ''))) {
+          try { audio.setEnabled(true); } catch (e) {}
+          audioMirror = true;
+        }
+      } catch (e) {}
+      try { fileInput.value = ''; } catch (e) {}
+      refresh();
+    });
+  } catch (e) { fileInput = null; }
+  onBtn(fileBtn, function () {
+    if (!audio) return;
+    try { if (fileInput) fileInput.click(); } catch (e) {}
+  });
 
   // QUALITY — dispatches event (main owns renderer) + syncs window.__post if present
   var qBody = addSection('quality', 'QUALITY');

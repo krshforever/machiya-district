@@ -12,6 +12,10 @@ import * as THREE from 'three';
 // ---------------------------------------------------------------------------
 
 export const AUDIO_SRC = 'audio/suzume.mp3'; // user-supplied drop-in (gitignored)
+// Bundled royalty-free default: "Shamisen Nation" by MFP (Marron Fields
+// Production) via DOVA-SYNDROME — free for game use; credit in README + UI.
+export const FALLBACK_SRC = 'audio/tsukimori-bgm.mp3';
+export const FALLBACK_LABEL = 'Shamisen Nation (DOVA-SYNDROME)';
 export const TRACK_LABEL = 'Suzume';
 
 // Filter curve anchor points (Hz). Far floor 2200 keeps melody intelligible.
@@ -116,6 +120,8 @@ export function createAudio({ camera = null, scene = null, zones = [] } = {}) {
   let curFreq = FREQ_CLEAR;
   let lastDist = -1;
   let lastFreq = FREQ_CLEAR;
+  let currentLabel = TRACK_LABEL;
+  let customUrl = null;
 
   const _sv = new THREE.Vector3(); // source world pos (reused, no per-frame alloc)
   const _lv = new THREE.Vector3(); // listener world pos (reused)
@@ -167,24 +173,36 @@ export function createAudio({ camera = null, scene = null, zones = [] } = {}) {
     if (typeof source.setFilter === 'function') source.setFilter(filt);
     if (scene && typeof scene.add === 'function') scene.add(source);
     try {
-      new THREE.AudioLoader().load(
-        AUDIO_SRC,
-        (buf) => {
-          buffer = buf;
-          try { source.setBuffer(buf); } catch (e) { /* stay silent-safe */ }
-          // Autoplay only if the context is already running (post-gesture
-          // load or late drop-in). Otherwise armAutoplayOnce() starts us.
-          if (wantPlay && enabled && !muted) {
-            tryAttach();
-            if (ctxRunning()) { resumeCtx(); safePlay(); }
-          }
-        },
-        undefined,
-        () => {
+      // Primary drop-in first, bundled royalty-free track second, silence last.
+      const attempts = [
+        { url: AUDIO_SRC, label: TRACK_LABEL },
+        { url: FALLBACK_SRC, label: FALLBACK_LABEL },
+      ];
+      const tryLoad = (i) => {
+        if (i >= attempts.length) {
           missing = true;
-          warnOnce('[audio] missing ' + AUDIO_SRC + ' — radio silent (drop the user file at ' + AUDIO_SRC + ')');
+          warnOnce('[audio] missing ' + AUDIO_SRC + ' (drop your file at public/' + AUDIO_SRC + ') and no bundled fallback — radio silent');
+          return;
         }
-      );
+        new THREE.AudioLoader().load(
+          attempts[i].url,
+          (buf) => {
+            buffer = buf;
+            currentLabel = attempts[i].label;
+            missing = false;
+            try { source.setBuffer(buf); } catch (e) { /* stay silent-safe */ }
+            // Autoplay only if the context is already running (post-gesture
+            // load or late drop-in). Otherwise armAutoplayOnce() starts us.
+            if (wantPlay && enabled && !muted) {
+              tryAttach();
+              if (ctxRunning()) { resumeCtx(); safePlay(); }
+            }
+          },
+          undefined,
+          () => { tryLoad(i + 1); }
+        );
+      };
+      tryLoad(0);
     } catch (e) {
       missing = true;
       warnOnce('[audio] loader unavailable — radio silent');
@@ -242,8 +260,33 @@ export function createAudio({ camera = null, scene = null, zones = [] } = {}) {
       muted = false; // explicit level recovers from mute()
       api.volume = baseVolume;
     },
-    setEnabled(b) {
-      enabled = !!b;
+    // User-supplied track (file picker object URL): replaces the drop-in slot.
+    // Stays local to this browser — nothing is uploaded anywhere.
+    loadCustom(objectUrl, label) {
+      if (!objectUrl) return false;
+      if (noAudio) return false;
+      try {
+        if (customUrl && customUrl !== objectUrl) {
+          try { URL.revokeObjectURL(customUrl); } catch (e) {}
+        }
+        customUrl = objectUrl;
+        currentLabel = String(label || 'Custom track').slice(0, 48);
+        missing = false;
+        buffer = null;
+        new THREE.AudioLoader().load(
+          objectUrl,
+          (buf) => {
+            buffer = buf;
+            try { if (source) source.setBuffer(buf); } catch (e) {}
+            if (wantPlay && enabled && !muted) { tryAttach(); resumeCtx(); safePlay(); }
+          },
+          undefined,
+          () => { warnOnce('[audio] could not decode custom track (mp3/m4a/ogg/wav supported by your browser)'); }
+        );
+        return true;
+      } catch (e) { return false; }
+    },
+    setEnabled(b) {      enabled = !!b;
       if (enabled) {
         wantPlay = true;
         if (!noAudio && !missing && buffer) { tryAttach(); resumeCtx(); safePlay(); }
@@ -259,7 +302,7 @@ export function createAudio({ camera = null, scene = null, zones = [] } = {}) {
       const muffleK = clamp01(1 - (curFreq - FREQ_FAR) / (FREQ_CLEAR - FREQ_FAR));
       let playing = false;
       try { playing = !noAudio && !!source && !!source.isPlaying; } catch (e) { playing = false; }
-      return { enabled, playing, track: TRACK_LABEL, missing, dist, muffleK };
+      return { enabled, playing, track: currentLabel, missing, dist, muffleK };
     },
     update(dt) {
       let step = Number(dt);

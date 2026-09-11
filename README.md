@@ -81,3 +81,13 @@ Open the page and check the HUD (top-right) for draw calls / triangles
   hosting `dist/` statically. First-look checklist: roof silhouettes + corner
   sweeps across rooflines, shoji translucency at GOLDEN, maple canopy density,
   pond reflection in south garden, NIGHT window/lamp mood, shot 04 alley framing.
+
+## Audio
+
+The village radio (inside shop1) plays positionally with distance attenuation
+and building occlusion. Default bundled track: **"Shamisen Nation" by MFP
+(Marron Fields Production)**, via freeBGM DOVA-SYNDROME
+(https://dova-s.jp/ — free for game use; see their license terms).
+To use your own file instead, drop it at `public/audio/suzume.mp3` (gitignored)
+and reload — the radio prefers it automatically. Visitors can also play their
+own mp3/m4a/ogg/wav via AUDIO → + ADD TRACK (stays in their browser).

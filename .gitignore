@@ -1,5 +1,4 @@
 node_modules/
 *.log
 .DS_Store
-public/audio/*
-!public/audio/.gitkeep
+public/audio/suzume.mp3
