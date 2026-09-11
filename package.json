@@ -1,0 +1,19 @@
+{
+  "name": "machiya-district",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "description": "Procedural cinematic Japanese residential neighborhood (Three.js, zero pre-made assets)",
+  "scripts": {
+    "dev": "node node_modules/vite/bin/vite.js --port 5173",
+    "build": "node node_modules/vite/bin/vite.js build",
+    "preview": "node node_modules/vite/bin/vite.js preview --port 5173"
+  },
+  "dependencies": {
+    "@rollup/rollup-android-arm64": "^4.63.1",
+    "three": "0.160.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}

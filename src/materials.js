@@ -1,0 +1,237 @@
+import * as THREE from 'three';
+
+// ---------------------------------------------------------------------------
+// Procedural canvas textures. These are SURFACE DETAIL ONLY — every object
+// they shade is real geometry (boxes, lathes, instanced meshes).
+// ---------------------------------------------------------------------------
+
+function canvasTex(size, draw, repeatX = 1, repeatY = 1) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const g = c.getContext('2d');
+  draw(g, size);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(repeatX, repeatY);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
+// deterministic pseudo-random for stable textures
+function mulberry(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function woodDraw(dark) {
+  return (g, s) => {
+    const rnd = mulberry(dark ? 7 : 21);
+    const base = dark ? '#3d2a1c' : '#8a6844';
+    const streak = dark ? '#2a1d12' : '#6e5233';
+    const hi = dark ? '#54402c' : '#a37f52';
+    g.fillStyle = base; g.fillRect(0, 0, s, s);
+    for (let i = 0; i < 90; i++) {
+      const y = rnd() * s;
+      g.strokeStyle = rnd() < 0.3 ? hi : streak;
+      g.globalAlpha = 0.12 + rnd() * 0.22;
+      g.lineWidth = 0.6 + rnd() * 2.2;
+      g.beginPath();
+      g.moveTo(0, y);
+      for (let x = 0; x <= s; x += 16) g.lineTo(x, y + Math.sin(x * 0.05 + i) * 2.5);
+      g.stroke();
+    }
+    g.globalAlpha = 0.5;
+    for (let i = 0; i < 7; i++) { // knots
+      const x = rnd() * s, y = rnd() * s;
+      g.strokeStyle = streak; g.lineWidth = 1.2;
+      for (let r = 2; r < 9; r += 2) { g.beginPath(); g.ellipse(x, y, r * 1.8, r, 0.3, 0, Math.PI * 2); g.stroke(); }
+    }
+    g.globalAlpha = 1;
+  };
+}
+
+function plasterDraw(g, s) {
+  const rnd = mulberry(99);
+  g.fillStyle = '#efe7d6'; g.fillRect(0, 0, s, s);
+  for (let i = 0; i < 2600; i++) {
+    const v = 225 + Math.floor(rnd() * 28);
+    g.fillStyle = `rgb(${v},${v - 6},${v - 20})`;
+    g.globalAlpha = 0.35;
+    g.fillRect(rnd() * s, rnd() * s, 1.4, 1.4);
+  }
+  g.globalAlpha = 0.08; g.fillStyle = '#b09a78';
+  for (let i = 0; i < 8; i++) { g.beginPath(); g.arc(rnd() * s, rnd() * s, 12 + rnd() * 30, 0, 7); g.fill(); }
+  g.globalAlpha = 1;
+}
+
+function tatamiDraw(g, s) {
+  const rnd = mulberry(5);
+  g.fillStyle = '#a8a06a'; g.fillRect(0, 0, s, s);
+  for (let y = 0; y < s; y += 3) {
+    g.fillStyle = (y / 3) % 2 ? '#9d955f' : '#b3ab74';
+    g.fillRect(0, y, s, 2);
+  }
+  for (let i = 0; i < 500; i++) {
+    g.fillStyle = rnd() < 0.5 ? '#8a824f' : '#c0b87e';
+    g.globalAlpha = 0.4;
+    g.fillRect(rnd() * s, rnd() * s, 2, 1);
+  }
+  g.globalAlpha = 1;
+}
+
+function paperDraw(g, s) {
+  const rnd = mulberry(13);
+  g.fillStyle = '#f6efdd'; g.fillRect(0, 0, s, s);
+  for (let i = 0; i < 900; i++) {
+    g.fillStyle = rnd() < 0.5 ? '#efe6d0' : '#fbf5e6';
+    g.globalAlpha = 0.5;
+    g.fillRect(rnd() * s, rnd() * s, 2, 1);
+  }
+  g.globalAlpha = 1;
+}
+
+function gravelDraw(g, s) {
+  const rnd = mulberry(31);
+  g.fillStyle = '#cfc6b4'; g.fillRect(0, 0, s, s);
+  for (let i = 0; i < 1500; i++) {
+    const v = 165 + Math.floor(rnd() * 70);
+    g.fillStyle = `rgb(${v},${v - 4},${v - 14})`;
+    g.beginPath(); g.arc(rnd() * s, rnd() * s, 0.8 + rnd() * 1.8, 0, 7); g.fill();
+  }
+}
+
+function grassDraw(g, s) {
+  const rnd = mulberry(77);
+  g.fillStyle = '#7d8f57'; g.fillRect(0, 0, s, s);
+  for (let i = 0; i < 2200; i++) {
+    g.fillStyle = rnd() < 0.5 ? '#71834e' : '#8a9c60';
+    g.globalAlpha = 0.6;
+    g.fillRect(rnd() * s, rnd() * s, 1.5, 3);
+  }
+  g.globalAlpha = 1;
+}
+
+function stoneDraw(g, s) {
+  const rnd = mulberry(55);
+  g.fillStyle = '#9a968c'; g.fillRect(0, 0, s, s);
+  for (let i = 0; i < 1200; i++) {
+    const v = 120 + Math.floor(rnd() * 60);
+    g.fillStyle = `rgb(${v},${v},${v - 6})`;
+    g.globalAlpha = 0.5;
+    g.fillRect(rnd() * s, rnd() * s, 2, 2);
+  }
+  g.globalAlpha = 0.25; g.strokeStyle = '#6f6b62';
+  for (let i = 0; i < 6; i++) {
+    g.beginPath(); g.moveTo(rnd() * s, rnd() * s);
+    g.lineTo(rnd() * s, rnd() * s); g.stroke();
+  }
+  g.globalAlpha = 1;
+}
+
+function norenDraw(g, s) {
+  g.fillStyle = '#2e3d5c'; g.fillRect(0, 0, s, s); // indigo
+  g.fillStyle = '#efe7d2';
+  g.fillRect(s * 0.18, 0, s * 0.1, s);
+  g.fillRect(s * 0.72, 0, s * 0.1, s);
+  g.beginPath(); g.arc(s / 2, s * 0.34, s * 0.13, 0, 7); g.fill(); // sun disc
+  g.fillStyle = '#2e3d5c';
+  g.font = `bold ${Math.floor(s * 0.16)}px serif`;
+  g.textAlign = 'center';
+  g.fillText('TEA', s / 2, s * 0.72);
+}
+
+// sumi-e style scroll: mist gradient + mountain strokes + red seal
+function scrollDraw(g, s) {
+  const grad = g.createLinearGradient(0, 0, 0, s);
+  grad.addColorStop(0, '#f3ecdb'); grad.addColorStop(1, '#e4d8bd');
+  g.fillStyle = grad; g.fillRect(0, 0, s, s);
+  g.strokeStyle = '#4a4a48'; g.lineCap = 'round';
+  const mtn = (y0, amp, w, x0) => {
+    g.lineWidth = w; g.beginPath(); g.moveTo(x0, y0);
+    g.quadraticCurveTo(x0 + s * 0.2, y0 - amp, x0 + s * 0.38, y0 - amp * 0.25);
+    g.quadraticCurveTo(x0 + s * 0.5, y0 - amp * 0.7, x0 + s * 0.62, y0 - amp * 0.1);
+    g.stroke();
+  };
+  g.globalAlpha = 0.75; mtn(s * 0.62, s * 0.3, 7, s * 0.05);
+  g.globalAlpha = 0.5; mtn(s * 0.7, s * 0.2, 5, s * 0.35);
+  g.globalAlpha = 0.9;
+  g.fillStyle = '#b0533c'; g.beginPath(); g.arc(s * 0.68, s * 0.26, s * 0.05, 0, 7); g.fill();
+  g.globalAlpha = 1;
+  g.fillStyle = '#a33327'; g.fillRect(s * 0.12, s * 0.78, s * 0.1, s * 0.1);
+  g.fillStyle = '#f3ecdb'; g.font = `${Math.floor(s * 0.07)}px serif`; g.textAlign = 'center';
+  g.fillText('wa', s * 0.17, s * 0.855);
+}
+
+function fusumaDraw(g, s) {
+  g.fillStyle = '#e9dfc6'; g.fillRect(0, 0, s, s);
+  g.strokeStyle = '#c9b98f'; g.lineWidth = 2; g.globalAlpha = 0.7;
+  for (let i = -s; i < s * 2; i += 26) {
+    g.beginPath(); g.arc(i, s * 0.9, 22, Math.PI, 0); g.stroke();
+    g.beginPath(); g.arc(i, s * 0.45, 22, Math.PI, 0); g.stroke();
+  }
+  g.globalAlpha = 1;
+}
+
+export function buildMaterials() {
+  const woodTex = canvasTex(256, woodDraw(false), 1, 1);
+  const darkWoodTex = canvasTex(256, woodDraw(true), 1, 1);
+
+  const M = {
+    woodDark: new THREE.MeshStandardMaterial({ map: darkWoodTex, color: 0xb99f83, roughness: 0.75, envMapIntensity: 0.25 }),
+    wood: new THREE.MeshStandardMaterial({ map: woodTex, color: 0xcfa878, roughness: 0.8, envMapIntensity: 0.25 }),
+    woodFloor: new THREE.MeshStandardMaterial({ map: canvasTex(256, woodDraw(false), 4, 1), color: 0xd8b183, roughness: 0.7, envMapIntensity: 0.3 }),
+    plaster: new THREE.MeshStandardMaterial({ map: canvasTex(256, plasterDraw, 1, 1), color: 0xffffff, roughness: 0.95, envMapIntensity: 0.15 }),
+    paper: new THREE.MeshStandardMaterial({
+      map: canvasTex(128, paperDraw, 1, 1), color: 0xfff3da,
+      emissive: 0xffdf9e, emissiveIntensity: 0.38,
+      transparent: true, opacity: 0.92, roughness: 0.9, side: THREE.DoubleSide
+    }),
+    tatami: new THREE.MeshStandardMaterial({ map: canvasTex(256, tatamiDraw, 1, 1), color: 0xffffff, roughness: 0.95, envMapIntensity: 0.1 }),
+    tatamiEdge: new THREE.MeshStandardMaterial({ color: 0x2f4a3a, roughness: 0.9 }),
+    roofTile: new THREE.MeshStandardMaterial({ color: 0x4a4d55, roughness: 0.55, metalness: 0.08, envMapIntensity: 0.5 }),
+    roofTileAlt: new THREE.MeshStandardMaterial({ color: 0x3c3f46, roughness: 0.6, metalness: 0.08, envMapIntensity: 0.5 }),
+    ridge: new THREE.MeshStandardMaterial({ color: 0x35373d, roughness: 0.5, metalness: 0.1, envMapIntensity: 0.6 }),
+    roofUnder: new THREE.MeshStandardMaterial({ map: darkWoodTex, color: 0x8a6f52, roughness: 0.9 }),
+    stone: new THREE.MeshStandardMaterial({ map: canvasTex(256, stoneDraw, 1, 1), color: 0xffffff, roughness: 0.95, envMapIntensity: 0.15 }),
+    gravel: new THREE.MeshStandardMaterial({ map: canvasTex(256, gravelDraw, 6, 6), color: 0xffffff, roughness: 1.0 }),
+    grass: new THREE.MeshStandardMaterial({ map: canvasTex(256, grassDraw, 10, 10), color: 0xffffff, roughness: 1.0 }),
+    moss: new THREE.MeshStandardMaterial({ color: 0x5d7d3a, roughness: 1.0, envMapIntensity: 0.1 }),
+    mossDark: new THREE.MeshStandardMaterial({ color: 0x46652c, roughness: 1.0, envMapIntensity: 0.1 }),
+    bamboo: new THREE.MeshStandardMaterial({ color: 0x7fa04e, roughness: 0.6, envMapIntensity: 0.3 }),
+    bambooLeaf: new THREE.MeshStandardMaterial({ color: 0x4e7a34, roughness: 0.8, side: THREE.DoubleSide }),
+    trunk: new THREE.MeshStandardMaterial({ map: darkWoodTex, color: 0x9a7a5c, roughness: 0.9 }),
+    mapleLeaf: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.75, side: THREE.DoubleSide }),
+    fusuma: new THREE.MeshStandardMaterial({ map: canvasTex(256, fusumaDraw, 1, 1), color: 0xffffff, roughness: 0.9 }),
+    noren: new THREE.MeshStandardMaterial({ map: canvasTex(256, norenDraw, 1, 1), color: 0xffffff, roughness: 0.9, side: THREE.DoubleSide }),
+    scroll: new THREE.MeshStandardMaterial({ map: canvasTex(256, scrollDraw, 1, 1), color: 0xffffff, roughness: 0.9 }),
+    lanternGlow: new THREE.MeshStandardMaterial({ color: 0xffd9a0, emissive: 0xff9c46, emissiveIntensity: 2.2 }),
+    paperLantern: new THREE.MeshStandardMaterial({ color: 0xffe4b8, emissive: 0xffb46b, emissiveIntensity: 1.4, roughness: 0.8 }),
+    bronze: new THREE.MeshStandardMaterial({ color: 0x4c4238, roughness: 0.45, metalness: 0.7, envMapIntensity: 0.8 })
+  };
+
+// --- district extension: aged/new wood, glass, metals, soil, wet registry ---
+M.woodNew   = M.woodNew   || new THREE.MeshStandardMaterial({ color: 0x8a6238, roughness: 0.7 });
+M.woodAged  = M.woodAged  || new THREE.MeshStandardMaterial({ color: 0x6e6258, roughness: 0.9 });
+M.glassDark = M.glassDark || new THREE.MeshStandardMaterial({ color: 0x10151c, roughness: 0.08, metalness: 0.9 });
+M.bronze    = M.bronze    || new THREE.MeshStandardMaterial({ color: 0x6b5a33, roughness: 0.35, metalness: 0.9 });
+M.iron      = M.iron      || new THREE.MeshStandardMaterial({ color: 0x2b2b2e, roughness: 0.5, metalness: 0.8 });
+M.soil      = M.soil      || new THREE.MeshStandardMaterial({ color: 0x4a3f33, roughness: 1 });
+M.thatch    = M.thatch    || new THREE.MeshStandardMaterial({ color: 0x9a8a5f, roughness: 1 });
+// wettable registry for weather.js
+M._wet = M._wet || [];
+M.registerWet = (m) => { if (m && !M._wet.includes(m)) M._wet.push(m); return m; };
+M.plasterTinted = (hex) => new THREE.MeshStandardMaterial({ color: hex, roughness: 0.95 });
+// register the core set once:
+[M.wood, M.woodDark, M.woodNew, M.woodAged, M.plaster, M.tile, M.stone, M.soil].forEach(m => m && M.registerWet(m));
+// shared aliases so district builders reuse textured mothership materials:
+M.tile = M.tile || M.roofTile;
+M.shoji = M.shoji || M.paper;
+M.registerWet(M.tile);
+return M;
+}
