@@ -198,6 +198,35 @@ export function buildDetails({ lampPositions = [], polePositions = [] } = {}) {
     g.add(WD);
   }
 
+  // --- diegetic radio prop inside shop1 (audio.js source anchor) ---
+  // Shop1 interior (after its PI rotation) is x 10.5..17.5, z 11..16;
+  // (15.5, 14.5) is clear of walls and furniture. g.add meshes only.
+  {
+    const RX = 15.5, RZ = 14.5;
+    const crate = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.9, 0.62), M.wood);
+    crate.position.set(RX, 0.45, RZ); crate.castShadow = true; g.add(crate);
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.35, 0.3), M.wood);
+    cab.position.set(RX, 1.075, RZ); cab.castShadow = true; g.add(cab);
+    const face = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.28, 0.02), M.iron);
+    face.position.set(RX, 1.075, RZ - 0.16); g.add(face);
+    const knobGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.03, 10);
+    for (const dx of [-0.12, -0.05]) {
+      const knob = new THREE.Mesh(knobGeo, M.bronze);
+      knob.rotation.x = Math.PI / 2;
+      knob.position.set(RX + dx, 0.99, RZ - 0.18); g.add(knob);
+    }
+    const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.012, 0.7, 6), M.bronze);
+    ant.position.set(RX + 0.18, 1.55, RZ + 0.05);
+    ant.rotation.z = -0.35; ant.rotation.x = 0.12; g.add(ant);
+    const dialMat = new THREE.MeshStandardMaterial({
+      color: 0x201408, emissive: 0xffb45e, emissiveIntensity: 1.0, roughness: 0.6
+    });
+    const dial = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.045, 0.012), dialMat);
+    dial.position.set(RX + 0.05, 1.16, RZ - 0.175); g.add(dial);
+    g.userData.radioGlow = dialMat;
+    g.userData.radioPos = new THREE.Vector3(15.5, 1.15, 14.5);
+  }
+
   // merge static buckets
   const matFor = (k) => M[{ WOOD: 'wood', wood: 'wood', woodD: 'woodD', iron: 'iron', stone: 'stone', leaf: 'leaf', cream: 'cream' }[k] || 'wood'];
   for (const k of Object.keys(buckets)) {

@@ -148,6 +148,7 @@ export function createCinematics(camera, controls) {
     get mode() { return _mode; },
     get label() { return _mode === 'orbit' ? 'orbit' : SHOTS[_idx].n; },
     get count() { return SHOTS.length; },
+    get names() { return SHOTS.map((s) => s.n); },
     setMode(m) {
       _mode = String(m); _advTimer = 0;
       if (controls) controls.enabled = (_mode !== 'cine');

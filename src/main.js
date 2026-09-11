@@ -12,7 +12,8 @@ import { buildCamera } from './camera.js';
 // relocated pond and district vegetation take those roles. Modules stay on disk;
 // pristine v1 lives at ~/japanese-house-v1.)
 import { setSharedM, upgradeHero } from './houses.js';
-import { buildTown } from './town.js';
+import { buildTown, LAYOUT } from './town.js';
+import { createAudio, armAutoplayOnce } from './audio.js';
 import { buildDetails, updateDetails } from './details.js';
 import { createWeather, WIND } from './weather.js';
 import { createDaytime, buildNightSky } from './daytime.js';
@@ -29,6 +30,14 @@ import {
 // --- renderer (mobile/thermal discipline: pixelRatio capped at 2) ---
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+// tsuki-quality: ui.js dispatches, main owns the renderer (low=1, medium=1.5, high/cinematic=2 cap)
+window.addEventListener('tsuki-quality', (e) => {
+  try {
+    const q = e && e.detail;
+    const cap = q === 'low' ? 1 : q === 'medium' ? 1.5 : 2;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cap));
+  } catch (err) { /* never break the frame loop for UI */ }
+});
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -55,6 +64,8 @@ upgradeHero(heroGroup, { nageshiY: 2.2, eaveY: 3.7, doorX: arch.openBayX });
 const town = buildTown({ scene, heroGroup });
 const det = buildDetails(town);
 scene.add(det.group);
+// NOTE: diegetic audio setup lives after camera creation (createAudio takes
+// `camera`; referencing it here would throw a TDZ error). See below.
 
 // TSUKIMORI identity: physical 3D sign + studio plaque (slots verified clear
 // of LAYOUT lots, lamps, poles, drains, puddles, paths and shot sightlines)
@@ -117,6 +128,20 @@ const daytime = createDaytime({
 
 const { camera, controls } = buildCamera(renderer);
 const cine = createCinematics(camera, controls);
+// Diegetic shop radio (Suzume). Listener attaches lazily on first gesture.
+const audio = createAudio({ camera, scene, zones: LAYOUT });
+{
+  const rp = (det.group.userData.radioPos) || new THREE.Vector3(15.5, 1.15, 14.5);
+  if (audio.source) audio.source.position.copy(rp);
+}
+// Deep link: &music=0 starts muted (opt-out BEFORE first gesture).
+// Default: enabled-pending-gesture — first tap resumes ctx + plays.
+if (new URLSearchParams(location.search).get('music') === '0') {
+  audio.setEnabled(false);
+} else {
+  armAutoplayOnce(audio);
+}
+window.__audio = audio; // headless probe: audio.state()
 // shot moods (cinematic lighting suggestions) -> daytime + weather
 cine.onMood(({ time, wx } = {}) => {
   if (time) daytime.set(time);
@@ -156,7 +181,7 @@ window.__perf = () => ({
 window.__errors = [];
 window.addEventListener('error', (e) => window.__errors.push(String(e.message)));
 
-buildUI({ daytime, weather, cine, hudEl: document.getElementById('hud') });
+buildUI({ daytime, weather, cine, hudEl: document.getElementById('hud'), audio });
 
 // deep links (shareable cinematic states; also used by headless verification):
 // ?time=NIGHT&wx=rainy&shot=3
@@ -212,10 +237,18 @@ function animate() {
   daytime.update(dt, weather);
   night.setMoon(daytime.state === 'NIGHT' ? 1 : 0);
   cine.update(dt);
+  audio.update(dt);
   updateDetails(det, t, WIND);
   swayVegetation(vegRoots, t, WIND);
 
   controls.update();
+  // dev-overlay camera readout (ui.js reads window.__cam if present, else shows 'n/a')
+  try {
+    window.__cam = {
+      pos: camera.position.toArray(),
+      tgt: (controls && controls.target) ? controls.target.toArray() : []
+    };
+  } catch (err) { /* guarded */ }
   post.render();
 
   if (firstFrame) {
