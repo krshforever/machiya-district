@@ -40,7 +40,7 @@ window.addEventListener('tsuki-quality', (e) => {
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap; // r165+: PCF is soft by default (PCFSoft removed)
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.06;
 document.getElementById('app').appendChild(renderer.domElement);
@@ -194,7 +194,7 @@ buildUI({ daytime, weather, cine, hudEl: document.getElementById('hud'), audio }
 }
 
 // --- animation loop (wall-clock by default; ?fixed=1&fps=N = deterministic) ---
-const clock = new THREE.Clock();
+const clock = new THREE.Timer(); // r170+: Clock deprecated in favor of Timer
 const __cineQ = new URLSearchParams(location.search);
 const __fixed = __cineQ.get('fixed') === '1';
 const __cine = createClock({ fps: Number(__cineQ.get('fps')) || 30 });
@@ -214,8 +214,9 @@ function animate() {
     const s = __cine.step();
     dt = s.dt; t = s.t;
   } else {
+    clock.update();
     dt = Math.min(clock.getDelta(), 0.05);
-    t = clock.elapsedTime;
+    t = clock.getElapsed();
   }
   if (dt > 0) fpsEMA += ((1 / Math.max(dt, 1e-3)) - fpsEMA) * 0.05;
 
