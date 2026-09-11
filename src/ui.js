@@ -34,9 +34,10 @@ export function buildUI({ daytime, weather, cine, hudEl }) {
       ? `${p.calls} calls · ${p.triangles.toLocaleString('en-US')} tris · ${p.fps}fps<br>${daytime.state} · ${weather.state} · ${cine.label}`
       : `${daytime.state} · ${weather.state} · ${cine.label}`;
   };
-  ['DAWN', 'DAY', 'GOLDEN', 'SUNSET', 'NIGHT'].forEach(s => mk(timeRow, s, (b) => { daytime.set(s); refresh(); }));
+  [['DAWN', 'DAWN'], ['DAY', 'DAY'], ['GOLDEN', 'GOLDEN'], ['SUNSET', 'SUNSET'], ['BLUE_HOUR', 'BLUE'], ['NIGHT', 'NIGHT'], ['MOONLIT', 'MOON'], ['RAIN_NIGHT', 'RAIN'], ['MIST_NIGHT', 'MIST']].forEach(([key, label]) => mk(timeRow, label, (b) => { daytime.set(key); refresh(); }));
   ['clear', 'windy', 'rainy', 'misty'].forEach(s => mk(wxRow, s, () => { weather.setState(s); refresh(); }));
-  for (let i = 0; i < 10; i++) mk(shRow, String(i + 1).padStart(2, '0'), () => { cine.setMode('cine'); cine.goTo(i); refresh(); });
+  const shotCount = (cine && cine.count) || 10;
+  for (let i = 0; i < shotCount; i++) mk(shRow, String(i + 1).padStart(2, '0'), () => { cine.setMode('cine'); cine.goTo(i, 2.5, true); refresh(); });
   root.querySelector('#du-min').onclick = () => root.classList.toggle('min');
   root.querySelector('#du-mode').onclick = (e) => {
     const m = cine.mode === 'cine' ? 'orbit' : 'cine'; cine.setMode(m);
@@ -48,6 +49,23 @@ export function buildUI({ daytime, weather, cine, hudEl }) {
   root.querySelector('#du-auto').onclick = (e) => {
     const on = daytime.toggleAuto(); e.target.textContent = `day-cycle: ${on ? 'on' : 'off'}`; e.target.classList.toggle('on', on);
   };
+  // post-quality cycler (guarded; window.__post set by main.js when post.js loads)
+  {
+    const qb = document.createElement('button');
+    qb.id = 'du-post';
+    const paint = () => { qb.textContent = 'POST ' + ((window.__post && window.__post.quality) || 'off').toUpperCase(); };
+    paint();
+    qb.onclick = () => {
+      try {
+        const cur = (window.__post && window.__post.quality) || 'off';
+        const nxt = cur === 'off' ? 'low' : cur === 'low' ? 'high' : 'off';
+        if (window.__post) window.__post.setQuality(nxt);
+      } catch (e) { /* guarded */ }
+      paint();
+    };
+    root.querySelector('#du-shots').after(qb);
+    setInterval(paint, 2000);
+  }
   setInterval(refresh, 500);
   return { refresh };
 }

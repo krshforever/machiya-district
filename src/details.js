@@ -126,6 +126,78 @@ export function buildDetails({ lampPositions = [], polePositions = [] } = {}) {
   // drain covers
   for (const x of [-10, 2, 12]) put('iron', BOX(0.8, 0.04, 0.5), x, 0.1, 9.05);
 
+  // ---- micro-detail pack (deterministic, shared geo/mat; +6 GL draws) ----
+  // Firewood goes through put() -> merged into the wood bucket (+0 draws).
+  // Lantern spheres + cloth strips + rock/weeds InstancedMeshes: +6 draws.
+  const dh = (i, s) => { const x = Math.sin(i * 127.1 + s * 311.7) * 43758.5453; return x - Math.floor(x); };
+  // (a) firewood stacks against hero side walls (clear of fence z=2.8, vines z<=0.2)
+  for (const [sx, sz] of [[5.6, 0.9], [-5.6, 0.9]]) {
+    for (let r = 0; r < 14; r++) {
+      const row = Math.floor(r / 5), col = r % 5;
+      const lg = BOX(0.85 + dh(r, sx) * 0.2, 0.15, 0.15);
+      const m = new THREE.Matrix4().makeRotationY((dh(r, sz) - 0.5) * 0.2);
+      m.setPosition(sx + (dh(r, 3) - 0.5) * 0.06, 0.1 + row * 0.16, sz + (col - 2) * 0.17);
+      lg.applyMatrix4(m);
+      (buckets['wood'] ||= []).push(lg);
+    }
+  }
+  // (b) hanging paper lanterns under street-lamp arms (emissive only, no lights)
+  {
+    const lg = new THREE.SphereGeometry(0.15, 12, 10);
+    const lm = new THREE.MeshStandardMaterial({ color: 0xfff2d8, emissive: 0xffb45e, emissiveIntensity: 1.2, roughness: 0.6 });
+    for (const [x, z] of [[-3.9, 8.9], [6.8, 8.9]]) {
+      const m = new THREE.Mesh(lg, lm);
+      m.position.set(x, 3.02, z); // hangs just below the lamp arm (y 3.35)
+      g.add(m);
+    }
+  }
+  // (c) hanging cloth on shop1 front (face z=11 after PI rotation; strips proud of it)
+  for (const [x, key] of [[13.5, 'indigo'], [14.5, 'cream']]) {
+    const geo = new THREE.PlaneGeometry(0.5, 0.9, 1, 2);
+    geo.translate(0, -0.45, 0);
+    const mesh = new THREE.Mesh(geo, M[key]);
+    mesh.position.set(x, 2.6, 10.8); mesh.rotation.y = x < 14 ? 0.15 : -0.12;
+    mesh.castShadow = true;
+    g.add(mesh); cloth.push({ mesh, phase: dh(x, 1) * 6.28, amp: 0.08 });
+  }
+  // (d) stone arrangement ring outside the pond rim (pond at (-6,13) r~2.4/1.55)
+  {
+    const rg = new THREE.IcosahedronGeometry(0.32, 1);
+    const pa = rg.attributes.position;
+    for (let i = 0; i < pa.count; i++) {
+      const f = 1 + 0.22 * Math.sin(i * 3.7) + 0.12 * Math.sin(i * 9.1 + 1.3);
+      pa.setXYZ(i, pa.getX(i) * f, pa.getY(i) * f * 0.72, pa.getZ(i) * f);
+    }
+    rg.computeVertexNormals();
+    const RK = new THREE.InstancedMesh(rg, M.stone, 5);
+    const d4 = new THREE.Object3D();
+    [[-8.5, 11.5], [-3.5, 14.2], [-7.8, 14.5], [-3.8, 11.3], [-6.0, 11.0]].forEach(([x, z], i) => {
+      d4.position.set(x, 0.1, z); d4.rotation.set(0, dh(i, 21) * 6.28, 0);
+      const sc = 0.7 + dh(i, 22) * 0.9; d4.scale.set(sc, sc * 0.8, sc); d4.updateMatrix();
+      RK.setMatrixAt(i, d4.matrix);
+    });
+    RK.instanceMatrix.needsUpdate = true; RK.castShadow = true; RK.receiveShadow = true;
+    g.add(RK);
+  }
+  // (e) weeds at wall/fence/road bases (ONE instanced mesh, no shadow casting)
+  {
+    const wg = new THREE.PlaneGeometry(0.36, 0.3);
+    wg.translate(0, 0.15, 0);
+    const WD = new THREE.InstancedMesh(wg, M.leaf, 24);
+    const d4 = new THREE.Object3D();
+    const sites = [[-4.6, 3.3], [-2.0, 3.3], [1.5, 3.3], [4.6, 3.3], [-5.15, 0.9], [5.15, 0.9],
+      [13.0, 10.6], [15.0, 10.6], [-14.0, 10.6], [-12.0, 10.6], [-6.2, 1.0], [7.2, 5.2]];
+    let k2 = 0;
+    for (let i = 0; i < 12; i++) for (let c = 0; c < 2; c++) {
+      d4.position.set(sites[i][0], 0.02, sites[i][1]);
+      d4.rotation.set(0, (c * Math.PI) / 2 + dh(i, 31) * 0.6, 0);
+      const sc2 = 0.7 + dh(i, 32 + c) * 0.7; d4.scale.set(sc2, sc2, sc2); d4.updateMatrix();
+      WD.setMatrixAt(k2++, d4.matrix);
+    }
+    WD.instanceMatrix.needsUpdate = true; WD.castShadow = false; WD.receiveShadow = false;
+    g.add(WD);
+  }
+
   // merge static buckets
   const matFor = (k) => M[{ WOOD: 'wood', wood: 'wood', woodD: 'woodD', iron: 'iron', stone: 'stone', leaf: 'leaf', cream: 'cream' }[k] || 'wood'];
   for (const k of Object.keys(buckets)) {

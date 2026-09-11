@@ -51,11 +51,14 @@ export function buildPond(M) {
     g.add(im);
   }
 
-  function update(t) {
+  function update(t, weather = null) {
     const p = waterGeo.attributes.position;
+    // wetness widens the ripple slightly (rain); default path unchanged
+    const wet = weather && typeof weather.wetness === 'number' ? Math.min(Math.max(weather.wetness, 0), 1) : 0;
+    const amp = 1 + wet * 0.35;
     for (let i = 0; i < p.count; i++) {
       const bx = base[i * 3], by = base[i * 3 + 1];
-      p.setZ(i, Math.sin(bx * 2.1 + t * 1.7) * 0.022 + Math.cos(by * 2.8 + t * 2.2) * 0.02);
+      p.setZ(i, (Math.sin(bx * 2.1 + t * 1.7) * 0.022 + Math.cos(by * 2.8 + t * 2.2) * 0.02) * amp);
     }
     p.needsUpdate = true;
     waterGeo.computeVertexNormals();

@@ -19,6 +19,8 @@ import { createDaytime, buildNightSky } from './daytime.js';
 import { createCinematics } from './cinematics.js';
 import { buildUI } from './ui.js';
 import { buildSignage } from './signage.js';
+import { createClock } from './cineclock.js';
+import { createPost } from './post.js';
 import {
   buildMapleVar, buildBambooCluster, buildShrub, buildGrassTufts,
   buildVines, buildMoss, swayVegetation,
@@ -115,6 +117,24 @@ const daytime = createDaytime({
 
 const { camera, controls } = buildCamera(renderer);
 const cine = createCinematics(camera, controls);
+// shot moods (cinematic lighting suggestions) -> daytime + weather
+cine.onMood(({ time, wx } = {}) => {
+  if (time) daytime.set(time);
+  if (wx) weather.setState(wx);
+});
+// restrained post: default off = bit-identical direct render
+const post = createPost({ renderer, scene, camera });
+window.__post = post;
+try {
+  const q = new URLSearchParams(location.search).get('post');
+  post.setQuality(q === 'high' ? 'high' : q === 'low' ? 'low' : 'off');
+} catch (e) { try { post.setQuality('off'); } catch (_e) { /* guarded */ } }
+window.addEventListener('resize', () => {
+  try { post.setSize(window.innerWidth, window.innerHeight); } catch (e) { /* guarded */ }
+});
+// pond tint follows sky mood (fog tracks it via daytime); temporally stable lerp
+const pondBase = pond.waterMat.color.clone();
+const pondTmp = new THREE.Color();
 
 // --- HUD + perf probe (used for verification) ---
 const hud = document.getElementById('hud');
@@ -148,17 +168,35 @@ buildUI({ daytime, weather, cine, hudEl: document.getElementById('hud') });
   if (s !== null) { cine.setMode('cine'); cine.goTo(Number(s) || 0); }
 }
 
-// --- animation loop ---
+// --- animation loop (wall-clock by default; ?fixed=1&fps=N = deterministic) ---
 const clock = new THREE.Clock();
+const __cineQ = new URLSearchParams(location.search);
+const __fixed = __cineQ.get('fixed') === '1';
+const __cine = createClock({ fps: Number(__cineQ.get('fps')) || 30 });
+window.__cine = {
+  get frame() { return __cine.frame; },
+  get t() { return __cine.t; },
+  get fps() { return __cine.fps; },
+  mode: __fixed ? 'fixed' : 'wall',
+};
 let firstFrame = true;
 
 function animate() {
   requestAnimationFrame(animate);
-  const dt = Math.min(clock.getDelta(), 0.05);
-  const t = clock.elapsedTime;
+  let dt, t;
+  if (__fixed) {
+    // one exact cine frame per rAF: same updater calls, same order, derived time
+    const s = __cine.step();
+    dt = s.dt; t = s.t;
+  } else {
+    dt = Math.min(clock.getDelta(), 0.05);
+    t = clock.elapsedTime;
+  }
   if (dt > 0) fpsEMA += ((1 / Math.max(dt, 1e-3)) - fpsEMA) * 0.05;
 
-  pond.update(t);
+  pond.update(t, weather);
+  pondTmp.copy(pondBase).lerp(scene.fog.color, 0.35);
+  pond.waterMat.color.lerp(pondTmp, 0.08);
   atmo.update(t, dt);
   for (const tick of tickers) tick(t);
 
@@ -178,7 +216,7 @@ function animate() {
   swayVegetation(vegRoots, t, WIND);
 
   controls.update();
-  renderer.render(scene, camera);
+  post.render();
 
   if (firstFrame) {
     firstFrame = false;
