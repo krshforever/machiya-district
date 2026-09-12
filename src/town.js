@@ -23,10 +23,10 @@ export const LAYOUT = [
 ];
 
 const HOUSE_PARAMS = {
-  A:     { seed: 11, w: 6.5, d: 6, wallH: 2.9, roofType: 'kirizuma', pitch: 30, facadeCols: 4, doorSide: -1, engawa: 0.9, woodTone: 0.3, age: 0.7 },
-  B:     { seed: 22, w: 6,   d: 6.5, wallH: 3.3, roofType: 'yosemune', pitch: 32, facadeCols: 3, doorSide: 1, engawa: 0,   woodTone: 0.8, age: 0.2 },
-  shop1: { seed: 33, w: 7,   d: 5, wallH: 3.4, roofType: 'kirizuma', pitch: 26, facadeCols: 4, doorSide: 0, engawa: 1.4, woodTone: 0.6, age: 0.35, isShop: true },
-  shop2: { seed: 44, w: 6.5, d: 5, wallH: 3.2, roofType: 'kirizuma', pitch: 27, facadeCols: 4, doorSide: 0, engawa: 1.2, woodTone: 0.4, age: 0.55, isShop: true },
+  A:     { seed: 11, w: 6.5, d: 6, wallH: 2.9, roofType: 'kirizuma', pitch: 30, facadeCols: 4, doorSide: -1, engawa: 0.9, woodTone: 0.3, age: 0.7, chains: true },
+  B:     { seed: 22, w: 6,   d: 6.5, wallH: 3.3, roofType: 'yosemune', pitch: 32, facadeCols: 3, doorSide: 1, engawa: 0,   woodTone: 0.8, age: 0.2, chains: true },
+  shop1: { seed: 33, w: 7,   d: 5, wallH: 3.4, roofType: 'kirizuma', pitch: 26, facadeCols: 4, doorSide: 0, engawa: 1.4, woodTone: 0.6, age: 0.35, isShop: true, chains: true },
+  shop2: { seed: 44, w: 6.5, d: 5, wallH: 3.2, roofType: 'kirizuma', pitch: 27, facadeCols: 4, doorSide: 0, engawa: 1.2, woodTone: 0.4, age: 0.55, isShop: true, chains: true },
   C:     { seed: 55, w: 7,   d: 6, wallH: 3.0, roofType: 'yosemune', pitch: 31, facadeCols: 4, doorSide: 1, engawa: 0.9, woodTone: 0.5, age: 0.5 },
   D:     { seed: 66, w: 6.5, d: 6, wallH: 3.5, roofType: 'kirizuma', pitch: 33, facadeCols: 3, doorSide: -1, engawa: 0,  woodTone: 0.75, age: 0.25 },
   E:     { seed: 77, w: 6,   d: 5.5, wallH: 2.8, roofType: 'kirizuma', pitch: 29, facadeCols: 3, doorSide: 1, engawa: 0.8, woodTone: 0.35, age: 0.65 },
@@ -145,14 +145,33 @@ export function buildTown({ scene, heroGroup = null } = {}) {
   town.add(_steppingStones(R));
 
   if (scene) scene.add(town);
+  const polePositions = [[-2.5, 9.3], [8.5, 9.3], [19.5, 9.0], [-15.5, 9.3], [-15.0, -6.8]];
+  // REMASTERED-A: pole→house service drops (power source → building connection).
+  // Nearest house per pole, attach at the eave corner nearest the pole.
+  // Pure math, no RNG — deterministic and stable across edits.
+  const serviceDrops = [];
+  for (const [px, pz] of polePositions) {
+    let best = null, bd = Infinity;
+    for (const h of houses) {
+      const L = LAYOUT.find(l => l.name === h.name);
+      if (!L) continue;
+      const dx = px - h.pos.x, dz = pz - h.pos.z, q = dx * dx + dz * dz;
+      if (q < bd) { bd = q; best = { h, L }; }
+    }
+    if (!best || bd > 400) continue;
+    const ax = best.h.pos.x + Math.max(-best.L.w / 2 + 0.3, Math.min(best.L.w / 2 - 0.3, px - best.h.pos.x));
+    const az = best.h.pos.z + Math.max(-best.L.d / 2 + 0.3, Math.min(best.L.d / 2 - 0.3, pz - best.h.pos.z));
+    const ay = 0.6 + (best.h.params?.wallH ?? 3.0);
+    serviceDrops.push({ a: [px, 5.9, pz], b: [ax, ay, az] });
+  }
   return {
-    group: town, houses,
+    group: town, houses, serviceDrops,
     lampPositions: [
       [-4.2, 8.9], [6.5, 8.9], [15.5, 8.9], [-13.5, 8.9], // main street corners
       [-5.0, -6.5], [8.0, -6.5],                          // back lane
       [-6.4, 1.5],                                        // alley mouth
     ],
-    polePositions: [[-2.5, 9.3], [8.5, 9.3], [19.5, 9.0], [-15.5, 9.3], [-15.0, -6.8]],
+    polePositions,
   };
 }
 

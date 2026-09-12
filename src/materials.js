@@ -29,12 +29,9 @@ function mulberry(seed) {
   };
 }
 
-function woodDraw(dark) {
+function woodDrawTone(seed, base, streak, hi) {
   return (g, s) => {
-    const rnd = mulberry(dark ? 7 : 21);
-    const base = dark ? '#3d2a1c' : '#8a6844';
-    const streak = dark ? '#2a1d12' : '#6e5233';
-    const hi = dark ? '#54402c' : '#a37f52';
+    const rnd = mulberry(seed);
     g.fillStyle = base; g.fillRect(0, 0, s, s);
     // pass 1: long directional grain streaks
     for (let i = 0; i < 130; i++) {
@@ -61,6 +58,13 @@ function woodDraw(dark) {
     }
     g.globalAlpha = 1;
   };
+}
+
+// legacy wrapper: dark posts/beams (seed 7) vs warm boards (seed 21)
+function woodDraw(dark) {
+  return dark
+    ? woodDrawTone(7, '#3d2a1c', '#2a1d12', '#54402c')
+    : woodDrawTone(21, '#8a6844', '#6e5233', '#a37f52');
 }
 
 function plasterDraw(g, s) {
@@ -292,8 +296,10 @@ export function buildMaterials() {
   };
 
 // --- district extension: aged/new wood, glass, metals, soil, wet registry ---
-M.woodNew   = M.woodNew   || new THREE.MeshStandardMaterial({ color: 0x8a6238, roughness: 0.7 });
-M.woodAged  = M.woodAged  || new THREE.MeshStandardMaterial({ color: 0x6e6258, roughness: 0.9 });
+// REMASTERED-A: woodNew/woodAged graduate from flat colors to real grain maps
+// (distinct seeds + palettes so new vs aged read differently, not just tinted).
+M.woodNew   = M.woodNew   || new THREE.MeshStandardMaterial({ map: canvasTex(256, woodDrawTone(501, '#9a7040', '#7a5630', '#bd9257'), 1, 1), color: 0xffffff, roughness: 0.7 });
+M.woodAged  = M.woodAged  || new THREE.MeshStandardMaterial({ map: canvasTex(256, woodDrawTone(502, '#77685a', '#5c5148', '#8d8172'), 2, 1), color: 0xffffff, roughness: 0.9 });
 M.glassDark = M.glassDark || new THREE.MeshStandardMaterial({ color: 0x10151c, roughness: 0.08, metalness: 0.9 });
 M.bronze    = M.bronze    || new THREE.MeshStandardMaterial({ color: 0x6b5a33, roughness: 0.35, metalness: 0.9 });
 M.iron      = M.iron      || new THREE.MeshStandardMaterial({ color: 0x2b2b2e, roughness: 0.5, metalness: 0.8 });
@@ -316,8 +322,16 @@ const _roughTex = new THREE.CanvasTexture(_rc);
 _roughTex.wrapS = _roughTex.wrapT = THREE.RepeatWrapping;
 _roughTex.repeat.set(3, 3);
 _roughTex.colorSpace = THREE.NoColorSpace; // roughnessMap must stay linear
-for (const _k of ['wood', 'woodDark', 'plaster', 'stone', 'soil']) {
+for (const _k of ['wood', 'woodDark', 'woodNew', 'woodAged', 'plaster', 'stone', 'soil']) {
   if (M[_k]) { M[_k].roughnessMap = _roughTex; M[_k].roughness = 1.0; }
+}
+// REMASTERED-A: roof ceramics get micro response from the same shared noise
+// (zero new textures): roughness variation + bump so tiles catch raking light.
+for (const _k of ['roofTile', 'roofTileAlt', 'ridge']) {
+  if (M[_k]) {
+    M[_k].roughnessMap = _roughTex; M[_k].roughness = 1.0;
+    M[_k].bumpMap = _roughTex; M[_k].bumpScale = 0.25;
+  }
 }
 M.soil.map = canvasTex(128, soilDraw, 4, 4);
 M.soil.needsUpdate = true;

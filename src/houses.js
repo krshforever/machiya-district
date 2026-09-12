@@ -60,12 +60,20 @@ function _cyl(buckets, key, rt, rb, h, x, y, z, seg = 8) {
   g.translate(x, y, z);
   (buckets[key] ||= []).push(g);
 }
-function _mergeBuckets(group, buckets, matFor, { shadow = true } = {}) {
+// generic transformed geometry (tori, etc.) into a merge bucket
+function _geo(buckets, key, geo, x, y, z, rx = 0, ry = 0, rz = 0) {
+  const m = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rx, ry, rz));
+  m.setPosition(x, y, z);
+  geo.applyMatrix4(m);
+  (buckets[key] ||= []).push(geo);
+}
+function _mergeBuckets(group, buckets, matFor, { shadow = true, noCast = null } = {}) {
   for (const k of Object.keys(buckets)) {
     const merged = mergeGeometries(buckets[k], false);
     buckets[k].forEach(g => g.dispose());
     const mesh = new THREE.Mesh(merged, matFor(k));
-    mesh.castShadow = shadow; mesh.receiveShadow = true;
+    mesh.castShadow = (noCast && noCast.has(k)) ? false : shadow;
+    mesh.receiveShadow = true;
     group.add(mesh);
   }
 }
@@ -95,6 +103,9 @@ export function generateHouse(p = {}) {
   const matFor = (k) =>
     k === 'WOOD' ? mat(woodSlot, woodSlot === 'woodNew' ? MwoodN : MwoodA) :
     k === 'WOOD_D' ? Mwood() :
+    k === 'IRON' ? Miron() :
+    k === 'IRNNC' ? Miron() : // rain chains: iron look, never shadow casters
+    k === 'RIDGE' ? mat('ridge', () => std(0x35373d, 0.5, 0.1)) :
     k === 'PLAS' ? ( _M.plasterTinted?.(p.plasterTone ?? 0xe8e0d0) ?? Mplas()) :
     k === 'STONE' ? Mstone() : Mwood();
 
@@ -153,6 +164,28 @@ export function generateHouse(p = {}) {
     const x = -w / 2 + colW * (c + 0.5);
     _box(B, 'WOOD_D', 0.22, 0.16, 0.3, x, yh + 0.32, d / 2 + 0.32);
   }
+  // REMASTERED-A: rain chains (kusari-doi) — OPT-IN via p.chains (hero street
+  // only). Eave water gets a visible path to the ground instead of vanishing.
+  // Own R2 stream so the legacy R() sequence (tiles, layout) is bit-identical.
+  // Light torus (4x6 = 48 tris/link, diamond section invisible at 5m+):
+  // ~4k tris per chained house. IRNNC bucket = merged with castShadow=false
+  // (chains hang under eaves; their shadows are invisible, the pass cost isn't).
+  if (p.chains === true) {
+    const R2 = srand((p.seed ?? 7) * 7919 + 13);
+    for (const sx of [1, -1]) {
+      const chX = sx * (w / 2 - 0.35), chZ = d / 2 + 0.5;
+      const topY = yh + 0.42, botY = 0.32;
+      const nL = Math.max(8, Math.floor((topY - botY) / 0.09));
+      for (let i = 0; i <= nL; i++) {
+        const ly = topY - (topY - botY) * (i / nL);
+        const jx = (R2() - 0.5) * 0.016, jz = (R2() - 0.5) * 0.016;
+        const t = new THREE.TorusGeometry(0.035, 0.008, 4, 6);
+        if (i % 2) _geo(B, 'IRNNC', t, chX + jx, ly, chZ + jz, 0, Math.PI / 2, 0);
+        else _geo(B, 'IRNNC', t, chX + jx, ly, chZ + jz, 0, 0, 0);
+      }
+      _box(B, 'STONE', 0.34, 0.12, 0.34, chX, 0.06, chZ, R2() * 0.2); // drain stone
+    }
+  }
 
   const glowMats = [];
   // ---- windows / doors (individual meshes: paper glow controllable per house) ----
@@ -175,7 +208,7 @@ export function generateHouse(p = {}) {
       }
       if (isShop) { // noren split curtain above door + sign board
         const norenM = new THREE.Mesh(new THREE.BoxGeometry(ww, 0.5, 0.03),
-          new THREE.MeshStandardMaterial({ color: 0x2c3e63, roughness: 0.9 }));
+          mat('noren', () => new THREE.MeshStandardMaterial({ color: 0x2c3e63, roughness: 0.9 })));
         norenM.position.set(cx, y0 + 2.35, d / 2 + 0.12); norenM.castShadow = true; winGroup.add(norenM);
       }
       continue;
@@ -258,7 +291,7 @@ export function generateHouse(p = {}) {
     g.add(inG);
   }
 
-  _mergeBuckets(g, B, matFor, { shadow: true });
+  _mergeBuckets(g, B, matFor, { shadow: true, noCast: new Set(['IRNNC']) });
 
   // ---- roof ----
   const roofG = new THREE.Group();
@@ -266,7 +299,7 @@ export function generateHouse(p = {}) {
   const roofY = yh + 0.35;
   const slopeLen = Math.hypot(d / 2 + 0.9, rise) + 0.35;
   const tileM = mat('tile', Mtile);
-  const ridgeM = Mwood();
+  const ridgeM = mat('ridge', () => new THREE.MeshStandardMaterial({ color: 0x35373d, roughness: 0.5, metalness: 0.1 }));
   const underM = new THREE.MeshStandardMaterial({ color: 0x3d3227, roughness: 0.95 }); // rich eave underside
   const tileGeoProto = new THREE.BoxGeometry(0.3, 0.07, 0.36);
   const tileXf = [];
@@ -346,6 +379,20 @@ export function generateHouse(p = {}) {
       hip.rotation.z = sx * 0.62; hip.castShadow = true; roofG.add(hip);
     }
   }
+  // REMASTERED-A: gable bargeboards (hafu trim) — the sloped edge boards that
+  // finish a kirizuma roof end. Skipped for yosemune (hips cover the ends).
+  // Merged to ONE mesh per house (+1 draw): no RNG, no stream impact.
+  if (roofType !== 'yosemune') {
+    const bbG = [];
+    for (const ex of [1, -1]) for (const s of [1, -1]) {
+      const b = new THREE.BoxGeometry(0.16, 0.09, slopeLen + 0.15);
+      b.applyMatrix4(new THREE.Matrix4().makeRotationX(s > 0 ? pitch : -pitch));
+      b.translate(ex * (w / 2 + 0.78), roofY + rise / 2 + 0.13, s * (d / 4 + 0.22));
+      bbG.push(b);
+    }
+    const bbM = new THREE.Mesh(mergeGeometries(bbG, false), Mwood());
+    bbM.castShadow = true; bbM.receiveShadow = true; roofG.add(bbM);
+  }
   g.add(roofG);
 
   // weathering: stain band near ground (thin dark translucent box) scaled by age
@@ -381,6 +428,27 @@ export function upgradeHero(hero, opts = {}) {
   // nageshi rail + bracket blocks on front face
   box(sx * 0.98, 0.12, 0.1, cx, (opts.nageshiY ?? 2.0), cz + sz / 2 + 0.08);
   for (let x = -sx / 2 + 0.8; x < sx / 2; x += 1.6) box(0.24, 0.18, 0.3, cx + x, (opts.eaveY ?? 3.35), cz + sz / 2 + 0.3);
+  // REMASTERED-A: hero rain chains — one merged mesh (+1 draw, ~4k tris).
+  // No RNG: strict alternation reads as hand-hung at street distance.
+  // castShadow=false: chains hang under the eave, shadows invisible.
+  {
+    const links = [];
+    const topY = (opts.eaveY ?? 3.35) + 0.4, botY = 0.3;
+    const nL = Math.max(8, Math.floor((topY - botY) / 0.09));
+    for (const qx of [cx - sx / 2 + 0.35, cx + sx / 2 - 0.35]) {
+      const qz = cz + sz / 2 + 0.5;
+      for (let i = 0; i <= nL; i++) {
+        const t = new THREE.TorusGeometry(0.035, 0.008, 4, 6);
+        const m = new THREE.Matrix4().makeRotationFromEuler(
+          new THREE.Euler(0, i % 2 ? Math.PI / 2 : 0, 0));
+        m.setPosition(qx, topY - (topY - botY) * (i / nL), qz);
+        t.applyMatrix4(m); links.push(t);
+      }
+    }
+    const chainMesh = new THREE.Mesh(mergeGeometries(links, false), iron);
+    links.forEach(g => g.dispose());
+    chainMesh.castShadow = false; chainMesh.receiveShadow = true; add.add(chainMesh);
+  }
   // thicker shoji lattice overlays: find paper-ish planes? — instead add entry door pulls (iron)
   const pullG = new THREE.CylinderGeometry(0.025, 0.025, 0.2, 6);
   for (const dx of [-0.12, 0.12]) {

@@ -24,7 +24,7 @@ function kanjiTexture(seed, bg, fg) {
   return t;
 }
 
-export function buildDetails({ lampPositions = [], polePositions = [] } = {}) {
+export function buildDetails({ lampPositions = [], polePositions = [], serviceDrops = [] } = {}) {
   const R = srand(4242);
   const g = new THREE.Group(); g.name = 'details';
   const cloth = [];   // {mesh, phase, amp} — animated by update()
@@ -228,6 +228,24 @@ export function buildDetails({ lampPositions = [], polePositions = [] } = {}) {
     g.userData.radioMeshes = [crate, cab, face, dial]; // P2.12: clickable radio
   }
 
+  // REMASTERED-A: service drops — pole top to house eave, with a ceramic
+  // insulator knob at the building end. BEFORE the bucket merge so the cream
+  // insulator merges with the other ceramics (+0 draws). Completes the §17
+  // causal chain: grid → pole → drop → insulator → building. No RNG.
+  const wireM = new THREE.MeshBasicMaterial({ color: 0x111114 });
+  for (const dr of serviceDrops) {
+    try {
+      const a = new THREE.Vector3(dr.a[0], dr.a[1], dr.a[2]);
+      const b = new THREE.Vector3(dr.b[0], dr.b[1], dr.b[2]);
+      if (a.distanceTo(b) > 22) continue;
+      const mid = a.clone().lerp(b, 0.5); mid.y -= Math.min(0.9, a.distanceTo(b) * 0.06);
+      const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
+      const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 16, 0.012, 5), wireM);
+      g.add(tube);
+      put('cream', CYL(0.03, 0.035, 0.09, 8), b.x, b.y, b.z); // insulator knob
+    } catch (e) { /* guarded: one bad drop never breaks details */ }
+  }
+
   // merge static buckets
   const matFor = (k) => M[{ WOOD: 'wood', wood: 'wood', woodD: 'woodD', iron: 'iron', stone: 'stone', leaf: 'leaf', cream: 'cream' }[k] || 'wood'];
   for (const k of Object.keys(buckets)) {
@@ -258,7 +276,6 @@ export function buildDetails({ lampPositions = [], polePositions = [] } = {}) {
   clothAt(1.5, 2.2, 2.62, 0.4, 0.6, 'cream');
 
   // ---- wires AFTER poles exist (catenary tubes) ----
-  const wireM = new THREE.MeshBasicMaterial({ color: 0x111114 });
   for (let i = 0; i < poleTops.length - 1; i++) {
     const a = poleTops[i], b = poleTops[i + 1];
     if (a.distanceTo(b) > 16) continue;

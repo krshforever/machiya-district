@@ -1,7 +1,7 @@
 // Compact roof-orientation gate (rebuild of the /tmp suite, lost to tmp purge).
 // Asserts: tile slope sign per side, ridge-cap spine+dome via bbox, ridge height.
-import * as THREE from '/data/data/com.termux/files/home/machiya-district/node_modules/three/build/three.module.js';
-import { generateHouse } from '/data/data/com.termux/files/home/machiya-district/src/houses.js';
+import * as THREE from '/data/data/com.termux/files/home/tsukimori/node_modules/three/build/three.module.js';
+import { generateHouse } from '/data/data/com.termux/files/home/tsukimori/src/houses.js';
 let pass = 0, fail = 0;
 const ok = (c, m) => { c ? pass++ : (fail++, console.log('  FAIL:', m)); };
 const M4 = new THREE.Matrix4(), P = new THREE.Vector3();
