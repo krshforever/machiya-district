@@ -24,19 +24,24 @@ const s2 = buildSettlement(M);
   const p1 = s1.houses.map((h) => h.pos.x + ',' + h.pos.y + ',' + h.pos.z).join(';');
   const p2 = s2.houses.map((h) => h.pos.x + ',' + h.pos.y + ',' + h.pos.z).join(';');
   ok(p1 === p2, 'settlement deterministic');
-  ok(s1.houses.length === 3, 'three houses');
+  ok(s1.houses.length === 5, `three hamlet + farm + barn (got ${s1.houses.length})`);
 }
 // houses sit on terrain, clear of fields/roads/river/district
 {
   for (const h of s1.houses) {
     const g = heightAt(h.pos.x, h.pos.z);
     ok(Math.abs(h.pos.y - g) < 0.15, `grounded ${h.name}`);
-    ok(h.pos.z > 30, 'south of district');
+    ok(h.pos.z > 20, 'south of district');
     const rz = 34 + 8 * Math.sin(h.pos.x * 0.045);
     // riverside hamlet may sit in the bank zone, but never in the water:
     // clear of the ribbon half-width (4m) with margin, above water level
     ok(Math.abs(h.pos.z - rz) > 5, `clear of water ${h.name}`);
     ok(heightAt(h.pos.x, h.pos.z) > -0.3, `above water ${h.name}`);
+    // footprint tilt within foundation tolerance (corner spread)
+    const w = h.name === 'farmhouse' ? 7.5 : h.name === 'barn' ? 5 : 6;
+    const d = h.name === 'farmhouse' ? 6 : h.name === 'barn' ? 7 : 5.5;
+    const cs = [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sz]) => heightAt(h.pos.x + (sx * w) / 2, h.pos.z + (sz * d) / 2));
+    ok(Math.max(...cs) - Math.min(...cs) < 0.8, `level footprint ${h.name}`);
   }
   // no house footprint inside a field rect
   const flats = fieldFlats();

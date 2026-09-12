@@ -15,6 +15,7 @@ function hash1(i, salt) {
 // R2: west forest trail loop. R3: east path toward the mountains.
 const ROADS = [
   { id: 'r1', kind: 'road', width: 2.5, pts: [[0, 24], [1, 29], [2, 32], [2, 38], [1, 42], [-4, 41]] },
+  { id: 'r4', kind: 'trail', width: 1.2, pts: [[-4, 41], [-12, 40], [-20, 38], [-26, 40], [-31, 44]] },
   { id: 'r2', kind: 'trail', width: 1.2, pts: [[-24, 10], [-36, 2], [-48, -12], [-52, -30], [-44, -46]] },
   { id: 'r3', kind: 'trail', width: 1.2, pts: [[24, 5], [38, 12], [52, 26], [62, 44]] },
 ];

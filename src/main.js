@@ -27,6 +27,7 @@ import { buildTerrain, buildRiver } from './terrain.js';
 import { buildRoads } from './roads.js';
 import { buildEcology } from './ecology.js';
 import { buildSettlement } from './settlement.js';
+import { buildShrine, buildTorii } from './shrine.js';
 import {
   buildMapleVar, buildBambooCluster, buildShrub, buildGrassTufts,
   buildVines, buildMoss, swayVegetation,
@@ -101,6 +102,13 @@ for (const t of eco.tickers) tickers.push(t);
 for (const r of eco.vegRoots) vegRoots.push(r);
 // P2.6: riverside hamlet + terraced paddies (placement-gated, registered)
 const settlement = buildSettlement(M);
+// P2.7: forest shrine off the west trail + torii gate on it
+{
+  const shrine = buildShrine(M, -48, -28, -2.03);
+  scene.add(shrine.group);
+  const torii = buildTorii(M, -51, -29.5, 2.68);
+  scene.add(torii.group);
+}
 scene.add(settlement.group);
 // hamlet windows join the night-glow set (daytime reads town.houses downstream)
 for (const h of settlement.houses) {

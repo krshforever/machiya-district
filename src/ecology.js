@@ -29,6 +29,7 @@ export function findPockets(wants, count, minGap, seed, rMax = 130) {
     const b = biomeAt(x, z);
     if (!wants.includes(b)) continue;
     if (roadDist(x, z) < 4) continue;
+    if (Math.hypot(x + 48, z + 28) < 10) continue; // shrine clearing
     if (slopeAt(x, z) > 0.55) continue;
     if (Math.abs(z - (34 + 8 * Math.sin(x * 0.045))) < 6) continue;
     if (found.some(([fx, fz]) => Math.hypot(fx - x, fz - z) < minGap)) continue;
@@ -97,6 +98,7 @@ export function buildEcology(M) {
       if (roadDist(x, z) < 3.5) continue;
       if (slopeAt(x, z) > 0.7) continue;
       if (Math.abs(z - (34 + 8 * Math.sin(x * 0.045))) < 5) continue;
+    if (Math.hypot(x + 48, z + 28) < 9) continue; // shrine clearing (sacred grove edge, not inside)
       const y = heightAt(x, z);
       const sc = b === 'mountain' ? 0.8 + R() * 0.5 : 1.0 + R() * 0.9;
       items.push({ x, y, z, sc, ry: R() * 6.28, biome: b, seed: i });

@@ -9,9 +9,14 @@ import { generateHouse, setSharedM } from './houses.js';
 import { roadDist } from './roads.js';
 
 const HAMLET = [
-  { name: 'hamletA', cx: -17, cz: 36, seed: 201, w: 6, d: 5, wallH: 2.9, roofType: 'kirizuma', pitch: 30, facadeCols: 3, doorSide: -1, engawa: 0.8, woodTone: 0.3, age: 0.7, winLayout: [1, 0, 2] },
-  { name: 'hamletB', cx: -11, cz: 38, seed: 202, w: 6, d: 5.5, wallH: 3.0, roofType: 'yosemune', pitch: 31, facadeCols: 3, doorSide: 1, engawa: 0, woodTone: 0.6, age: 0.4, winLayout: [2, 0, 1] },
-  { name: 'hamletC', cx: 18, cz: 31, seed: 203, w: 6, d: 5, wallH: 2.8, roofType: 'kirizuma', pitch: 29, facadeCols: 3, doorSide: 1, engawa: 0.8, woodTone: 0.5, age: 0.55, winLayout: [1, 2, 0] },
+  { name: 'hamletA', cx: -27, cz: 34, seed: 201, w: 6, d: 5, wallH: 2.9, roofType: 'kirizuma', pitch: 30, facadeCols: 3, doorSide: -1, engawa: 0.8, woodTone: 0.3, age: 0.7, winLayout: [1, 0, 2] },
+  { name: 'hamletB', cx: 13, cz: 24, seed: 202, w: 6, d: 5.5, wallH: 3.0, roofType: 'yosemune', pitch: 31, facadeCols: 3, doorSide: 1, engawa: 0, woodTone: 0.6, age: 0.4, winLayout: [2, 0, 1] },
+  { name: 'hamletC', cx: 22, cz: 28, seed: 203, w: 6, d: 5, wallH: 2.8, roofType: 'kirizuma', pitch: 29, facadeCols: 3, doorSide: 1, engawa: 0.8, woodTone: 0.5, age: 0.55, winLayout: [1, 2, 0] },
+];
+// P2.7 farmstead: big farmhouse + tall barn east of the fields (measured flat)
+const FARM = [
+  { name: 'farmhouse', cx: 13, cz: 29, seed: 204, w: 7.5, d: 6, wallH: 3.2, roofType: 'kirizuma', pitch: 32, facadeCols: 4, doorSide: 1, engawa: 1.0, woodTone: 0.35, age: 0.6, winLayout: [1, 2, 1, 0] },
+  { name: 'barn', cx: 20, cz: 30, seed: 205, w: 5, d: 7, wallH: 3.6, roofType: 'kirizuma', pitch: 40, facadeCols: 2, doorSide: 0, engawa: 0, woodTone: 0.25, age: 0.8, winLayout: [0, 0], glow: false },
 ];
 
 export function buildSettlement(M) {
@@ -19,21 +24,21 @@ export function buildSettlement(M) {
   const g = new THREE.Group();
   g.name = 'settlement';
   const houses = [];
-  HAMLET.forEach((hp, i) => {
+  for (const [list, base] of [[HAMLET, 40], [FARM, 50]]) for (const [i, hp] of list.entries()) {
     const h = generateHouse({ ...hp });
     const y = heightAt(hp.cx, hp.cz);
     h.group.position.set(hp.cx, y, hp.cz);
     g.add(h.group);
-    houses.push({ name: hp.name, group: h.group, glowMats: h.glowMats, pos: new THREE.Vector3(hp.cx, y, hp.cz) });
+    houses.push({ name: hp.name, group: h.group, glowMats: hp.glow === false ? [] : h.glowMats, pos: new THREE.Vector3(hp.cx, y, hp.cz) });
     const [ccx, ccz] = chunkOf(hp.cx, hp.cz);
-    registerObjects(ccx, ccz, [{ id: stableId('house', ccx, ccz, 40 + i), type: 'house', x: hp.cx, z: hp.cz, y, data: { name: hp.name } }]);
-  });
+    registerObjects(ccx, ccz, [{ id: stableId('house', ccx, ccz, base + i), type: 'house', x: hp.cx, z: hp.cz, y, data: { name: hp.name } }]);
+  }
   // fences between hamlet houses (merged posts + rails, 2 draws)
   {
     const buckets = { W: [], D: [] };
     const runs = [
-      { x1: -19.0, z1: 41.5, x2: -9.0, z2: 41.5 },
-      { x1: 12.5, z1: 30.5, x2: 14.5, z2: 32.5 },
+      { x1: -30.0, z1: 37.5, x2: -24.0, z2: 37.5 },
+      { x1: 8.5, z1: 27.5, x2: 8.5, z2: 32.0 },
     ];
     for (const r of runs) {
       const len = Math.hypot(r.x2 - r.x1, r.z2 - r.z1);
