@@ -174,8 +174,15 @@ export function createCinematics(camera, controls) {
     update(dt) {
       const step = Math.min(Math.max(dt || 0, 0), 0.1);
       _railT += step;
-      // 'free' (legacy alias) and 'orbit' both release to OrbitControls
-      if (_mode === 'free' || _mode === 'orbit') { if (controls) controls.update(); return; }
+      // 'free' (legacy alias) and 'orbit' both release to OrbitControls —
+      // except in explore mode (window.__explore.on), where OrbitControls.update()
+      // would stomp the first-person camera (enabled=false only blocks input).
+      if (_mode === 'free' || _mode === 'orbit') {
+        let exploring = false;
+        try { exploring = !!(window.__explore && window.__explore.on); } catch (e) {}
+        if (controls && !exploring) controls.update();
+        return;
+      }
       // auto-advance without mood (avoids flashing daytime/weather on ambient loop;
       // mood only applies on explicit goTo(i,dur,true) from UI deep-links)
       if (_auto && !_trans) {

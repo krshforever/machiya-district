@@ -19,6 +19,7 @@ import { createWeather, WIND } from './weather.js';
 import { createDaytime, buildNightSky } from './daytime.js';
 import { createCinematics } from './cinematics.js';
 import { createInteract } from './interact.js';
+import { createExplore } from './explore.js';
 import { buildUI } from './ui.js';
 import { buildSignage } from './signage.js';
 import { createClock } from './cineclock.js';
@@ -281,6 +282,37 @@ const daytime = createDaytime({
 
 const { camera, controls } = buildCamera(renderer);
 const cine = createCinematics(camera, controls);
+// P2.14 explore mode: first-person wander with terrain feet + building collisions.
+// Colliders from town LAYOUT lots + settlement houses (w/d now carried).
+const exploreSolids = [];
+try {
+  for (const lot of LAYOUT) {
+    exploreSolids.push({ x0: lot.cx - lot.w / 2, x1: lot.cx + lot.w / 2, z0: lot.cz - lot.d / 2, z1: lot.cz + lot.d / 2 });
+  }
+  for (const h of settlement.houses) {
+    const hw = (h.w || 6) / 2, hd = (h.d || 6) / 2;
+    exploreSolids.push({ x0: h.pos.x - hw, x1: h.pos.x + hw, z0: h.pos.z - hd, z1: h.pos.z + hd });
+  }
+} catch (e) {}
+const explore = createExplore(camera, renderer.domElement, {
+  heightFn: (x, z) => heightAt(x, z),
+  solids: exploreSolids,
+});
+window.__explore = { get on() { try { return explore.enabled; } catch (e) { return false; } } };
+window.addEventListener('tsuki-explore', (e) => {
+  try {
+    const on = !!(e && e.detail);
+    if (on) {
+      try { cine.setMode('free'); } catch (err) {}
+      controls.enabled = false;
+      explore.setEnabled(true, { x: 0, z: 10, yaw: Math.PI });
+    } else {
+      explore.setEnabled(false);
+      controls.enabled = true;
+      try { cine.setMode('orbit'); } catch (err) {}
+    }
+  } catch (err) {}
+});
 // P2.12: tap-to-interact (hero sliders + radio toggle). Drag/orbit unaffected.
 const interact = createInteract(camera, renderer.domElement);
 for (const s of (arch.sliders || [])) {
@@ -345,13 +377,16 @@ window.addEventListener('error', (e) => window.__errors.push(String(e.message)))
 buildUI({ daytime, weather, cine, hudEl: document.getElementById('hud'), audio });
 
 // deep links (shareable cinematic states; also used by headless verification):
-// ?time=NIGHT&wx=rainy&shot=3
+// ?time=NIGHT&wx=rainy&shot=3&explore=1
 {
   const qp = new URLSearchParams(location.search);
   const t = qp.get('time'), w = qp.get('wx'), s = qp.get('shot');
   if (t) daytime.set(t.toUpperCase());
   if (w) weather.setState(w.toLowerCase());
   if (s !== null) { cine.setMode('cine'); cine.goTo(Number(s) || 0); }
+  if (qp.get('explore') === '1') {
+    try { window.dispatchEvent(new CustomEvent('tsuki-explore', { detail: true })); } catch (e) {}
+  }
 }
 
 // --- animation loop (wall-clock by default; ?fixed=1&fps=N = deterministic) ---
@@ -426,8 +461,11 @@ if (det && det.group && !det.group.userData.__householdPushed) {
   updateDetails(det, t, WIND);
   if (lodFull) swayVegetation(vegRoots, t, WIND);
   interact.update(dt);
+  explore.update(dt);
 
-  controls.update();
+  // OrbitControls must not run in explore mode (update() stomps the FP camera
+  // even with controls.enabled=false); cinematics.js guards its own call too.
+  if (!explore.enabled) controls.update();
   // dev-overlay camera readout (ui.js reads window.__cam if present, else shows 'n/a')
   try {
     window.__cam = {

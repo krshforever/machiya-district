@@ -204,8 +204,9 @@ export function buildUI(opts) {
   var bAdv = mk('button', null, '❚❚ ADV');
   var bNext = mk('button', null, '▶');
   var bMode = mk('button', null, 'MODE');
+  var bExplore = mk('button', null, 'EXPLORE');
   var bAuto = mk('button', null, 'AUTO');
-  [bPrev, bAdv, bNext, bMode, bAuto].forEach(function (b) { trans.appendChild(b); });
+  [bPrev, bAdv, bNext, bMode, bExplore, bAuto].forEach(function (b) { trans.appendChild(b); });
   cineBody.appendChild(trans);
   var bPresent = mk('button', 'tsuki-present-btn', 'ENTER CINEMATIC');
   cineBody.appendChild(bPresent);
@@ -227,6 +228,13 @@ export function buildUI(opts) {
   onBtn(bAdv, function () { try { cine.toggleAdvance(); } catch (e) {} advMirror = !advMirror; refresh(); });
   onBtn(bMode, function () {
     try { cine.setMode(cur(cine.mode) === 'cine' ? 'free' : 'cine'); } catch (e) {}
+    refresh();
+  });
+  var exploreMirror = false;
+  onBtn(bExplore, function () {
+    exploreMirror = !exploreMirror;
+    try { window.dispatchEvent(new CustomEvent('tsuki-explore', { detail: exploreMirror })); } catch (e) {}
+    try { bExplore.textContent = exploreMirror ? 'EXIT EXPLORE' : 'EXPLORE'; } catch (e) {}
     refresh();
   });
   onBtn(bAuto, function () { try { daytime.toggleAuto(); } catch (e) {} autoMirror = !autoMirror; refresh(); });
