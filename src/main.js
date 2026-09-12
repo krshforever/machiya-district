@@ -22,6 +22,7 @@ import { buildUI } from './ui.js';
 import { buildSignage } from './signage.js';
 import { createClock } from './cineclock.js';
 import { createPost } from './post.js';
+import { registerObjects, chunkOf, stableId, registryStats } from './world.js';
 import {
   buildMapleVar, buildBambooCluster, buildShrub, buildGrassTufts,
   buildVines, buildMoss, swayVegetation,
@@ -69,6 +70,14 @@ upgradeHero(heroGroup, { nageshiY: 2.2, eaveY: 3.7, doorX: arch.openBayX });
 
 // --- district: town (repositions heroGroup to its lot), details, pond, vegetation ---
 const town = buildTown({ scene, heroGroup });
+// P2.1: district houses enter the world registry (future systems query it).
+// No visual change — same objects, now addressable by chunk + stable ID.
+town.houses.forEach((h, i) => {
+  const [cx, cz] = chunkOf(h.pos.x, h.pos.z);
+  registerObjects(cx, cz, [{ id: stableId('house', cx, cz, i), type: h.name === 'hero' ? 'hero' : 'house', x: h.pos.x, z: h.pos.z, y: 0, data: { name: h.name } }]);
+});
+window.__world = { stats: registryStats };
+console.log('WORLD registry: ' + JSON.stringify(registryStats()));
 const det = buildDetails(town);
 scene.add(det.group);
 // NOTE: diegetic audio setup lives after camera creation (createAudio takes
