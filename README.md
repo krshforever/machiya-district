@@ -1,4 +1,4 @@
-# Machiya District — Procedural Japanese Neighborhood (v2)
+# TSUKIMORI 月森 — The Moon Forest
 
 A complete cinematic traditional Japanese residential neighborhood built
 **entirely through procedural code**. No Blender, no downloaded models, no image
