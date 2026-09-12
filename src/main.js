@@ -23,6 +23,7 @@ import { buildSignage } from './signage.js';
 import { createClock } from './cineclock.js';
 import { createPost } from './post.js';
 import { registerObjects, chunkOf, stableId, registryStats } from './world.js';
+import { buildTerrain, buildRiver } from './terrain.js';
 import {
   buildMapleVar, buildBambooCluster, buildShrub, buildGrassTufts,
   buildVines, buildMoss, swayVegetation,
@@ -78,6 +79,11 @@ town.houses.forEach((h, i) => {
 });
 window.__world = { stats: registryStats };
 console.log('WORLD registry: ' + JSON.stringify(registryStats()));
+// P2.2/P2.3: terrain ring + river (district plateau untouched, base plane stays)
+const terrain = buildTerrain();
+scene.add(terrain.group);
+const river = buildRiver();
+scene.add(river.group);
 const det = buildDetails(town);
 scene.add(det.group);
 // NOTE: diegetic audio setup lives after camera creation (createAudio takes

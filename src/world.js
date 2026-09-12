@@ -57,18 +57,25 @@ function plateauMask(x, z) {
 }
 
 // --- analytic height field (metres) ---
+function sstep(a, b, x) {
+  const t = Math.min(Math.max((x - a) / (b - a), 0), 1);
+  return t * t * (3 - 2 * t);
+}
 export function heightAt(x, z) {
   const m = plateauMask(x, z);
   if (m <= 0) return 0;
   const hills = (fbm(x / 42 + 7.3, z / 42 - 2.1, 501, 4) - 0.5) * 11;
   const r = Math.hypot(x, z);
   const mountain = Math.max(0, r - 85) * 0.35; // distant rim lift
-  let h = hills + mountain;
-  // river carve: band along z = 34 + 8*sin(x*0.045), width ~7, depth 1.6
+  let h = (hills + mountain) * m;
+  // AUTHORITATIVE river channel: bed -1.6 at center, banks +0.6 at rd 8,
+  // blended to hills by rd 14. Guarantees water (y=-0.8, half-width 4)
+  // always sits inside its channel regardless of hill noise.
   const rz = 34 + 8 * Math.sin(x * 0.045);
   const rd = Math.abs(z - rz);
-  if (rd < 7) h -= 1.6 * (Math.cos((rd / 7) * Math.PI) * 0.5 + 0.5);
-  return h * m;
+  const prof = -1.6 + 2.2 * sstep(0, 8, rd);
+  const t = sstep(7, 14, rd);
+  return prof * (1 - t) + h * t;
 }
 export function slopeAt(x, z) {
   const e = 0.6;
