@@ -66,6 +66,16 @@ function woodDraw(dark) {
 function plasterDraw(g, s) {
   const rnd = mulberry(99);
   g.fillStyle = '#efe7d6'; g.fillRect(0, 0, s, s);
+  // WAVE-B: large soft mottling (uneven coloration) under the original tooth
+  for (let i = 0; i < 22; i++) {
+    const x = rnd() * s, y = rnd() * s, r = s * (0.08 + rnd() * 0.16);
+    const c = rnd() < 0.5 ? '210,203,188' : '228,222,206';
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, 'rgba(' + c + ',0.10)');
+    gr.addColorStop(1, 'rgba(' + c + ',0)');
+    g.fillStyle = gr; g.globalAlpha = 1;
+    g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  }
   for (let i = 0; i < 2600; i++) {
     const v = 225 + Math.floor(rnd() * 28);
     g.fillStyle = `rgb(${v},${v - 6},${v - 20})`;
@@ -116,6 +126,16 @@ function gravelDraw(g, s) {
 function grassDraw(g, s) {
   const rnd = mulberry(77);
   g.fillStyle = '#7d8f57'; g.fillRect(0, 0, s, s);
+  // WAVE-B: clump patchiness (varied blotch size 4..20px) under blade speckle
+  for (let i = 0; i < 46; i++) {
+    const x = rnd() * s, y = rnd() * s, r = 4 + rnd() * 16;
+    const pal = rnd();
+    const c = pal < 0.4 ? '74,102,46' : pal < 0.75 ? '96,128,58' : '112,140,72';
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, 'rgba(' + c + ',0.55)'); gr.addColorStop(1, 'rgba(' + c + ',0)');
+    g.fillStyle = gr; g.globalAlpha = 1;
+    g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  }
   for (let i = 0; i < 2200; i++) {
     g.fillStyle = rnd() < 0.5 ? '#71834e' : '#8a9c60';
     g.globalAlpha = 0.6;
@@ -127,16 +147,65 @@ function grassDraw(g, s) {
 function stoneDraw(g, s) {
   const rnd = mulberry(55);
   g.fillStyle = '#9a968c'; g.fillRect(0, 0, s, s);
+  // WAVE-B: wide tonal patches first (stronger spread than the tooth below)
+  for (let i = 0; i < 30; i++) {
+    const x = rnd() * s, y = rnd() * s, r = 6 + rnd() * 30;
+    const v = 118 + Math.floor(rnd() * 52) - 26;
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, 'rgba(' + v + ',' + v + ',' + (v + 4) + ',0.22)');
+    gr.addColorStop(1, 'rgba(' + v + ',' + v + ',' + (v + 4) + ',0)');
+    g.fillStyle = gr; g.globalAlpha = 1;
+    g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  }
   for (let i = 0; i < 1200; i++) {
     const v = 120 + Math.floor(rnd() * 60);
     g.fillStyle = `rgb(${v},${v},${v - 6})`;
     g.globalAlpha = 0.5;
     g.fillRect(rnd() * s, rnd() * s, 2, 2);
   }
+  // WAVE-B: 3 dark crevice streaks (seeded diagonal walks)
+  g.globalAlpha = 0.5; g.strokeStyle = 'rgba(38,38,42,1)'; g.lineCap = 'round';
+  for (let k = 0; k < 3; k++) {
+    let x = rnd() * s, y = rnd() * s;
+    g.lineWidth = 1.5 + rnd() * 1.5; g.beginPath(); g.moveTo(x, y);
+    for (let j = 0; j < 7; j++) { x += (rnd() - 0.35) * 26; y += (rnd() - 0.35) * 26; g.lineTo(x, y); }
+    g.stroke();
+  }
   g.globalAlpha = 0.25; g.strokeStyle = '#6f6b62';
   for (let i = 0; i < 6; i++) {
     g.beginPath(); g.moveTo(rnd() * s, rnd() * s);
     g.lineTo(rnd() * s, rnd() * s); g.stroke();
+  }
+  g.globalAlpha = 1;
+}
+
+// WAVE-B: shared 128px roughness noise (ONE canvas, linear, reused as roughnessMap)
+function paintRoughNoise(g, s) {
+  const rnd = mulberry(0x9e3779b9);
+  g.fillStyle = '#808080'; g.fillRect(0, 0, s, s);
+  for (let i = 0; i < 900; i++) {
+    const v = 110 + Math.floor(rnd() * 60);
+    g.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')';
+    g.fillRect(Math.floor(rnd() * s), Math.floor(rnd() * s), 1 + Math.floor(rnd() * 3), 1 + Math.floor(rnd() * 3));
+  }
+}
+
+// WAVE-B: soil painter (M.soil was flat color) + map wiring below in buildMaterials
+function soilDraw(g, s) {
+  const rnd = mulberry(0x50f1ed);
+  g.fillStyle = '#5a4632'; g.fillRect(0, 0, s, s);
+  for (let i = 0; i < 40; i++) {
+    const x = rnd() * s, y = rnd() * s, r = 4 + rnd() * 16;
+    const c = rnd() < 0.5 ? '66,50,34' : '96,78,56';
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, 'rgba(' + c + ',0.5)'); gr.addColorStop(1, 'rgba(' + c + ',0)');
+    g.fillStyle = gr; g.globalAlpha = 1;
+    g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  }
+  for (let i = 0; i < 300; i++) {
+    g.fillStyle = rnd() < 0.5 ? 'rgba(40,30,20,0.5)' : 'rgba(140,115,85,0.5)';
+    g.globalAlpha = 1;
+    g.fillRect(Math.floor(rnd() * s), Math.floor(rnd() * s), 2, 2);
   }
   g.globalAlpha = 1;
 }
@@ -240,5 +309,17 @@ M.plasterTinted = (hex) => new THREE.MeshStandardMaterial({ color: hex, roughnes
 M.tile = M.tile || M.roofTile;
 M.shoji = M.shoji || M.paper;
 M.registerWet(M.tile);
+// WAVE-B: single shared roughness texture (+1 texture total) + soil map wiring
+const _rc = document.createElement('canvas'); _rc.width = _rc.height = 128;
+paintRoughNoise(_rc.getContext('2d'), 128);
+const _roughTex = new THREE.CanvasTexture(_rc);
+_roughTex.wrapS = _roughTex.wrapT = THREE.RepeatWrapping;
+_roughTex.repeat.set(3, 3);
+_roughTex.colorSpace = THREE.NoColorSpace; // roughnessMap must stay linear
+for (const _k of ['wood', 'woodDark', 'plaster', 'stone', 'soil']) {
+  if (M[_k]) { M[_k].roughnessMap = _roughTex; M[_k].roughness = 1.0; }
+}
+M.soil.map = canvasTex(128, soilDraw, 4, 4);
+M.soil.needsUpdate = true;
 return M;
 }

@@ -173,12 +173,15 @@ export function buildMaple(M, baseX, baseZ) {
       s: 0.75 + rnd() * 0.7
     });
     // autumn gradient: top leaves redder, lower greener, noise throughout
+    // WAVE-B: wider hue/lightness spread + ~1-in-7 green holdouts (index hash,
+    // consumes no rnd() stream — prior placements bit-stable)
     const h = THREE.MathUtils.clamp((py - 1.2) / 2.2, 0, 1);
     const n = rnd();
-    if (n < h * 0.75) col.setHex(0xc23a24);       // momiji red
+    if (_h01(i, 77) < 0.14) col.setHex(0x5a7030);          // green holdout
+    else if (n < h * 0.75) col.setHex(0xc23a24);       // momiji red
     else if (n < h * 0.75 + 0.22) col.setHex(0xe07b28); // orange
     else col.setHex(0x6d8a3c);                    // green
-    col.offsetHSL((rnd() - 0.5) * 0.03, 0, (rnd() - 0.5) * 0.06);
+    col.offsetHSL((_h01(i, 11) - 0.5) * 0.08, 0, (_h01(i, 33) - 0.5) * 0.12);
     im.setColorAt(i, col);
   }
   fillInstances(im, items);
@@ -227,6 +230,30 @@ export function buildBambooCluster(M, seed = 1, x = 0, z = 0) {
   grp.userData.sway = { amp: 0.015 + R() * 0.02, freq: 1.1 + R() * 0.7, ph: R() * 6.28 };
   return grp;
 }
+// WAVE-B: index-hash helper (deterministic variation WITHOUT consuming R() streams)
+function _h01(i, salt) {
+  let h = (Math.imul(i + 1, 2654435761) ^ Math.imul(salt, 40503)) >>> 0;
+  h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13;
+  return (h >>> 0) / 4294967296;
+}
+// WAVE-B: procedural grass-blade alpha (tapered blades cut from the quad).
+// Gives real blade silhouettes + makes alphaToCoverage/MSAA meaningful.
+function bladeAlphaTex() {
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 64;
+  const x = c.getContext('2d');
+  x.fillStyle = '#000'; x.fillRect(0, 0, 64, 64);
+  x.fillStyle = '#fff';
+  for (const [bx, bw, bend] of [[14, 9, -6], [30, 11, 0], [46, 8, 7]]) {
+    x.beginPath();
+    x.moveTo(bx - bw / 2, 64);
+    x.quadraticCurveTo(bx - bw / 2 + bend, 30, bx + bend, 4 + bend * 0.2);
+    x.quadraticCurveTo(bx + bw / 2 + bend, 30, bx + bw / 2, 64);
+    x.closePath(); x.fill();
+  }
+  const t = new THREE.CanvasTexture(c);
+  return t;
+}
 export function buildShrub(seed = 1, r = 0.5) { // pruned look: squashed displaced icosphere
   const R = _srand(seed * 77 + 1);
   const geo = new THREE.IcosahedronGeometry(r, 2);
@@ -237,6 +264,10 @@ export function buildShrub(seed = 1, r = 0.5) { // pruned look: squashed displac
   }
   geo.computeVertexNormals();
   const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: new THREE.Color(0x395c2c).offsetHSL(0, 0, (R() - 0.5) * 0.05), roughness: 1 }));
+  // WAVE-B: wider size/rotation variance from the same stream
+  const sc = 0.72 + R() * 0.63;
+  m.scale.set(sc, sc * (0.85 + R() * 0.4), sc);
+  m.rotation.y = R() * Math.PI * 2;
   m.castShadow = true; m.userData.sway = { amp: 0.008, freq: 1.4, ph: R() * 6.28 };
   return m;
 }
@@ -244,12 +275,16 @@ export function buildGrassTufts(seed = 1, n = 60, area = [6, 3]) { // instanced 
   const R = _srand(seed * 31 + 5);
   const blade = new THREE.PlaneGeometry(0.5, 0.35); blade.translate(0, 0.17, 0);
   const cross = mergeGeometriesPublic([blade, blade.clone().rotateY(Math.PI / 2)], false);
-  const m = new THREE.MeshStandardMaterial({ color: 0x5c7038, roughness: 1, side: THREE.DoubleSide, alphaTest: 0.4 });
+  const m = new THREE.MeshStandardMaterial({ color: 0x5c7038, roughness: 1, side: THREE.DoubleSide, alphaTest: 0.4, alphaMap: bladeAlphaTex(), alphaToCoverage: true });
   const inst = new THREE.InstancedMesh(cross, m, n);
   const d = new THREE.Object3D();
   for (let i = 0; i < n; i++) {
     d.position.set((R() - 0.5) * area[0], 0, (R() - 0.5) * area[1]);
-    d.rotation.y = R() * 3.14; d.scale.setScalar(0.7 + R() * 0.7); d.updateMatrix();
+    d.rotation.y = R() * 3.14; d.scale.setScalar(0.7 + R() * 0.7);
+    // WAVE-B: every 4th blade stretches taller (layering, zero new streams,
+    // zero new draws — stream order preserved, values after shift deterministically)
+    if (((i + (seed % 4) + 4) % 4) === 0) d.scale.y *= 1.9;
+    d.updateMatrix();
     inst.setMatrixAt(i, d.matrix);
   }
   inst.castShadow = false; inst.receiveShadow = true;

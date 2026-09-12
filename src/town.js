@@ -45,6 +45,37 @@ function assertNoOverlap() {
   }
 }
 
+// WAVE-B grounding: OPAQUE soil-dark discs (roughness 1) under fence/wall bases.
+// y=+0.04 sits 10mm above the highest strip (0.03) -> never coplanar.
+// polygonOffset(-1) + opaque = zero flicker risk. Two merged meshes = +2 draws.
+function _grounding() {
+  const rects = [
+    // [cx, cz, w, d] — rects FOLLOW fence runs, never under hero/street/pond
+    [0.0, 2.45, 19.0, 0.55],   // main fence run z=2.8, shadow side
+    [-8.5, 0.60, 0.55, 4.20],  // W return fence
+    [8.9, 0.60, 0.55, 4.20],   // E return fence
+    [0.25, -5.05, 6.40, 0.55], // bamboo-grove soil (behind hero)
+    [-3.9, 3.55, 1.60, 0.70],  // pot-cluster soil E
+    [3.1, 3.55, 1.60, 0.70],   // pot-cluster soil W
+  ];
+  const geosA = [], geosB = [];
+  rects.forEach(([cx, cz, w, d], idx) => {
+    const g = new THREE.PlaneGeometry(w, d);
+    g.rotateX(-Math.PI / 2); g.translate(cx, 0.04, cz);
+    (idx < 4 ? geosA : geosB).push(g);
+  });
+  const mat = new THREE.MeshStandardMaterial({ color: 0x3a2e20, roughness: 1.0, metalness: 0.0 });
+  mat.polygonOffset = true; mat.polygonOffsetFactor = -1; mat.polygonOffsetUnits = -1;
+  const grp = new THREE.Group();
+  for (const set of [geosA, geosB]) {
+    const merged = mergeGeometries(set, false);
+    set.forEach(g => g.dispose());
+    grp.add(new THREE.Mesh(merged, mat));
+  }
+  grp.traverse(o => { if (o.isMesh) { o.receiveShadow = true; } });
+  return grp; // +2 draw calls
+}
+
 export function buildTown({ scene, heroGroup = null } = {}) {
   assertNoOverlap();
   const R = srand(SEED);
@@ -107,6 +138,7 @@ export function buildTown({ scene, heroGroup = null } = {}) {
   town.add(_stoneWalls(R, groundMats));
   // ---------- wooden fences + gates ----------
   town.add(_fences(R));
+  town.add(_grounding()); // WAVE-B: opaque grounding discs
   // ---------- drainage channels + covers + 2 bridges ----------
   town.add(_drainage());
   // ---------- stepping-stone paths per house ----------

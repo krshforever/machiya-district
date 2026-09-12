@@ -113,6 +113,58 @@ for (const [x, z, w, d, s] of [[-5.4, 2.4, 1.6, 1.0, 51], [5.4, 2.4, 1.6, 1.0, 5
   const m = buildMoss(s, w, d);
   m.position.set(x, 0.055, z); m.rotation.y = s; scene.add(m);
 }
+// WAVE-B micro-density: wall-hugging moss/weeds/shrubs, canopy drifts, path pebbles.
+// All coords overlap-checked (fence z=2.8, street z 5.5..8.5, drain 9.05, pond (-6,13)).
+for (const [x, z, w, d, s] of [[-3.9, 3.7, 0.9, 0.9, 61], [3.1, 3.7, 0.9, 0.9, 62], [-8.4, 2.2, 0.7, 0.7, 63], [8.9, 2.2, 0.7, 0.7, 64]]) {
+  const m = buildMoss(s, w, d);
+  m.position.set(x, 0.055, z); m.rotation.y = s * 0.7; scene.add(m);
+}
+for (const [x, z, seed, n] of [[-7.5, 2.45, 71, 24], [-1.2, 2.45, 72, 24], [4.8, 2.45, 73, 24], [8.6, 3.4, 74, 18], [-4.2, 10.6, 75, 14]]) {
+  const g = buildGrassTufts(seed, n, [1.2, 1.2]);
+  g.position.set(x, 0.04, z); scene.add(g);
+}
+for (const [x, z, r, seed] of [[-2.5, -5.5, 0.85, 81], [3.0, -5.2, 1.0, 82]]) {
+  const s = buildShrub(seed, r);
+  s.position.set(x, 0.25, z); scene.add(s); addSway(s);
+}
+{ // fallen-leaf drifts under real canopies + kicked-pebble path shoulders
+  const h1 = (i, s) => { const h = (Math.imul(i + 1, 2654435761) ^ Math.imul(s, 40503)) >>> 0; return (h >>> 0) / 4294967296; };
+  const leafCols = [0xc23a24, 0xe07b28, 0x9a5a20, 0x6d8a3c];
+  const mkDrift = (cx, cz, radius, n, seed) => {
+    const geo = new THREE.PlaneGeometry(0.22, 0.18);
+    const im = new THREE.InstancedMesh(geo, M.mapleLeaf, n);
+    const d4 = new THREE.Object3D(); const col = new THREE.Color();
+    for (let i = 0; i < n; i++) {
+      const a = h1(i, seed) * Math.PI * 2, r = Math.sqrt(h1(i, seed + 1)) * radius;
+      d4.position.set(cx + Math.cos(a) * r, 0.05, cz + Math.sin(a) * r); // 10mm above soil discs
+      d4.rotation.set(-Math.PI / 2, 0, h1(i, seed + 2) * Math.PI * 2);
+      d4.updateMatrix(); im.setMatrixAt(i, d4.matrix);
+      col.setHex(leafCols[Math.floor(h1(i, seed + 3) * leafCols.length)]);
+      col.offsetHSL((h1(i, seed + 4) - 0.5) * 0.05, 0, (h1(i, seed + 5) - 0.5) * 0.08);
+      im.setColorAt(i, col);
+    }
+    im.instanceMatrix.needsUpdate = true;
+    if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    im.receiveShadow = true;
+    scene.add(im);
+  };
+  mkDrift(-4.2, 4.6, 1.1, 60, 91); // under maple (-4.2,4.6)
+  mkDrift(6.8, 4.4, 1.0, 50, 92);  // under maple (6.8,4.4)
+  const mkPebbles = (x0, x1, z, seed) => {
+    const im = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.05, 0), M.stone, 40);
+    const d4 = new THREE.Object3D();
+    for (let i = 0; i < 40; i++) {
+      d4.position.set(x0 + (h1(i, seed) * (x1 - x0)), 0.07, z + (h1(i, seed + 1) - 0.5) * 0.5);
+      d4.rotation.set(h1(i, seed + 2) * 3, h1(i, seed + 3) * 3, 0);
+      const sc = 0.7 + h1(i, seed + 4) * 0.8; d4.scale.set(sc, sc * 0.75, sc);
+      d4.updateMatrix(); im.setMatrixAt(i, d4.matrix);
+    }
+    im.instanceMatrix.needsUpdate = true; im.castShadow = false; im.receiveShadow = true;
+    scene.add(im);
+  };
+  mkPebbles(-6, -1, 4.9, 93); // N court shoulder, clear of edging z 5.2..5.5
+  mkPebbles(1, 6, 8.2, 94);   // S street shoulder, clear of edging + drain
+}
 
 const atmo = buildAtmosphere(M);
 scene.add(atmo.group);
@@ -161,16 +213,8 @@ window.addEventListener('resize', () => {
 const pondBase = pond.waterMat.color.clone();
 const pondTmp = new THREE.Color();
 
-// --- HUD + perf probe (used for verification) ---
-const hud = document.getElementById('hud');
-let hudTimer = 0, fpsEMA = 60;
-function updateHud() {
-  const info = renderer.info;
-  hud.innerHTML =
-    `draw calls&nbsp; ${info.render.calls}<br>` +
-    `triangles&nbsp;&nbsp; ${info.render.triangles.toLocaleString('en-US')}<br>` +
-    `geometries&nbsp; ${info.memory.geometries}`;
-}
+// --- perf probe (used for verification; #hud text is owned solely by ui.js) ---
+let fpsEMA = 60;
 window.__perf = () => ({
   calls: renderer.info.render.calls,
   triangles: renderer.info.render.triangles,
@@ -258,8 +302,5 @@ function animate() {
     loader.style.opacity = '0';
     setTimeout(() => loader.remove(), 700);
   }
-  hudTimer += dt;
-  if (hudTimer > 0.5) { hudTimer = 0; updateHud(); }
 }
-updateHud();
 animate();

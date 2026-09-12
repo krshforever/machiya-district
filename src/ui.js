@@ -437,9 +437,15 @@ export function buildUI(opts) {
 
       // PROBE #du-state: must contain "TIME · WEATHER · LABEL"
       try { duState.textContent = tShort + ' · ' + wShort + ' · ' + label; } catch (e) {}
-      // PROBE #hud: must keep receiving text (even display:none — textContent still writes)
+      // PROBE #hud: must keep receiving text (even display:none — textContent still writes).
+      // Perf numbers appended for headless verification (harmless on device).
       try {
-        if (hudEl) hudEl.textContent = 'TSUKIMORI 月森 — ' + tShort + ' · ' + wShort + ' · ' + label + ' | SHOT ' + nn + '/' + cc;
+        var perfTxt = '';
+        try {
+          var pp = window.__perf ? window.__perf() : null;
+          if (pp) perfTxt = ' <' + pp.calls + 'c ' + pp.triangles + 't ' + pp.fps + 'f>';
+        } catch (e) {}
+        if (hudEl) hudEl.textContent = 'TSUKIMORI 月森 — ' + tShort + ' · ' + wShort + ' · ' + label + ' | SHOT ' + nn + '/' + cc + perfTxt;
       } catch (e) {}
 
       try {
