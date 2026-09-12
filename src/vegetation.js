@@ -26,9 +26,11 @@ function mergeGeos(geos) {
 }
 
 // --- bamboo cluster: segmented culms with node rings + instanced leaves ---
-export function buildBamboo(M, baseX, baseZ) {
+// REMASTERED-C: skeleton seed — every cluster grows its own lean/height/node
+// pattern instead of sharing one clone skeleton (scale/rotation only).
+export function buildBamboo(M, baseX, baseZ, seed = 808) {
   const g = new THREE.Group();
-  const rnd = mulberry(808);
+  const rnd = mulberry(seed);
   const culms = [];
   const leafSpots = [];
 
@@ -113,9 +115,10 @@ export function buildBamboo(M, baseX, baseZ) {
 }
 
 // --- Japanese maple: recursive tapered branches + 340 instanced leaves ---
-export function buildMaple(M, baseX, baseZ) {
+// REMASTERED-C: skeleton seed — branching hierarchy differs per tree.
+export function buildMaple(M, baseX, baseZ, seed = 1555) {
   const g = new THREE.Group();
-  const rnd = mulberry(1555);
+  const rnd = mulberry(seed);
   const anchors = [];
   const up = new THREE.Vector3(0, 1, 0);
 
@@ -206,7 +209,7 @@ export function buildMaple(M, baseX, baseZ) {
 import { srand as _srand } from './houses.js';
 export function buildMapleVar(M, seed = 1, size = 1, autumnT = 0.6, x = 0, z = 0) {
   const R = _srand(seed * 1000 + 7);
-  const built = buildMaple(M, 0, 0); // built at local origin; wrapper positions once
+  const built = buildMaple(M, 0, 0, seed * 7919 + 101); // own skeleton per tree
   const base = built.group || built;
   base.scale.setScalar(size * (0.9 + R() * 0.25));
   const leaf = new THREE.Color(0x4a7a35).lerp(new THREE.Color(0xc23c1e), autumnT);
@@ -221,7 +224,7 @@ export function buildMapleVar(M, seed = 1, size = 1, autumnT = 0.6, x = 0, z = 0
 }
 export function buildBambooCluster(M, seed = 1, x = 0, z = 0) {
   const R = _srand(seed * 500 + 3);
-  const built = buildBamboo(M, 0, 0); // v1 9-culm cluster: reuse, vary by orientation/scale
+  const built = buildBamboo(M, 0, 0, seed * 4153 + 7); // own skeleton per cluster
   const grp = built.group || built;
   grp.rotation.y = R() * 6.28;
   grp.scale.setScalar(0.85 + R() * 0.4);
@@ -313,6 +316,56 @@ export function buildMoss(seed, w = 1.6, d = 1.0) { // flat dark-green carpet
   const m = new THREE.Mesh(new THREE.CircleGeometry(0.5, 10),
     new THREE.MeshStandardMaterial({ color: 0x445c2e, roughness: 1 }));
   m.rotation.x = -Math.PI / 2; m.scale.set(w, d, 1); m.receiveShadow = true;
+  return m;
+}
+// REMASTERED-C: fallen-leaf litter — WHERE leaves land, litter lies. Mottled
+// momiji disc under a canopy drip-line (the atmo leaf sources fall onto this).
+// spots: [{x, y, z, r, seed}]. ONE merged mesh + ONE shared texture per call.
+let _litterTex = null;
+function litterTex() {
+  if (_litterTex) return _litterTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const x = c.getContext('2d');
+  x.fillStyle = '#4a3826'; x.fillRect(0, 0, 128, 128);
+  const R = mulberry(0x11fe07);
+  const pal = ['#a83a22', '#c77b2e', '#6b4e30', '#5a6b35', '#7d4a26', '#8f5a24'];
+  for (let i = 0; i < 650; i++) {
+    x.fillStyle = pal[Math.floor(R() * pal.length)];
+    x.globalAlpha = 0.5 + R() * 0.5;
+    const w = 1 + R() * 2.5;
+    x.save(); x.translate(R() * 128, R() * 128); x.rotate(R() * 3.14);
+    x.fillRect(-w / 2, -w / 3, w, w * 0.66); // leaf-chip flecks, not dots
+    x.restore();
+  }
+  x.globalAlpha = 1;
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  _litterTex = t;
+  return t;
+}
+export function buildLitterMerged(spots) {
+  const geos = [];
+  for (const s of spots) {
+    const g = new THREE.CircleGeometry(0.5, 12);
+    g.rotateX(-Math.PI / 2);
+    g.scale(s.r * 2.4, 1, s.r * 2.0);
+    // deterministic rotation from seed (index-hash, no stream)
+    const h = _h01(s.seed || 1, 911);
+    g.rotateY(h * 6.28);
+    g.translate(s.x, s.y, s.z);
+    geos.push(g);
+  }
+  if (!geos.length) return null;
+  const merged = mergeGeos(geos);
+  geos.forEach(g => g.dispose());
+  const m = new THREE.Mesh(merged, new THREE.MeshStandardMaterial({
+    map: litterTex(), roughness: 1, metalness: 0,
+    polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+  }));
+  m.receiveShadow = true;
   return m;
 }
 // wind consumer: call each frame with WIND from weather.js — rotates GROUP roots only

@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { heightAt, slopeAt, moistureAt, biomeAt, streamFor } from './world.js';
 import { roadDist } from './roads.js';
 import {
-  buildMapleVar, buildBambooCluster, buildShrub, buildGrassTufts,
+  buildMapleVar, buildBambooCluster, buildShrub, buildGrassTufts, buildLitterMerged,
 } from './vegetation.js';
 
 function hash2i(x, z, salt) {
@@ -54,6 +54,12 @@ export function buildEcology(M) {
     m.rotation.y = hash2i(i, 13, 7) * 6.28;
     scene_add(g, m); sway(m);
   });
+  // REMASTERED-C: litter under grove canopies (same leaves→litter causality)
+  {
+    const spots = mapleSpots.map(([x, z], i) => ({ x, y: heightAt(x, z) + 0.05, z, r: 1.2, seed: 720 + i }));
+    const lit = buildLitterMerged(spots);
+    if (lit) g.add(lit);
+  }
   const bambooSpots = findPockets(['bamboo'], 2, 16, 102, 80);
   bambooSpots.forEach(([x, z], i) => {
     const b = buildBambooCluster(M, 510 + i, 0, 0);

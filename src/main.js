@@ -34,7 +34,7 @@ import { buildSettlement } from './settlement.js';
 import { decorateHouse, decorateEntrance } from './household.js';
 import { buildShrine, buildTorii } from './shrine.js';
 import {
-  buildMapleVar, buildBambooCluster, buildShrub, buildGrassTufts,
+  buildMapleVar, buildBambooCluster, buildShrub, buildGrassTufts, buildLitterMerged,
   buildVines, buildMoss, swayVegetation,
 } from './vegetation.js';
 
@@ -181,6 +181,15 @@ scene.add(pond.group);
   const m = buildMapleVar(M, i + 1, s, a, x, z);
   m.position.set(x, 0, z); scene.add(m); addSway(m);
 });
+// REMASTERED-C: litter under the district canopies (leaves land → litter lies)
+{
+  const spots = [
+    [-4.2, 4.6, 1.3], [6.8, 4.4, 1.0], [-8.2, -6.2, 1.5],
+    [13.5, -8.5, 1.1], [-16, 3.5, 0.9],
+  ].map(([x, z, s], i) => ({ x, y: 0.05, z, r: s, seed: 700 + i }));
+  const lit = buildLitterMerged(spots);
+  if (lit) scene.add(lit);
+}
 [[0, -5.5], [-7.6, 4.6], [7.5, -8.5]].forEach(([x, z], i) => {
   const b = buildBambooCluster(M, 10 + i, x, z);
   scene.add(b); addSway(b);
