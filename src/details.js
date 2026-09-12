@@ -225,6 +225,7 @@ export function buildDetails({ lampPositions = [], polePositions = [] } = {}) {
     dial.position.set(RX + 0.05, 1.16, RZ - 0.175); g.add(dial);
     g.userData.radioGlow = dialMat;
     g.userData.radioPos = new THREE.Vector3(15.5, 1.15, 14.5);
+    g.userData.radioMeshes = [crate, cab, face, dial]; // P2.12: clickable radio
   }
 
   // merge static buckets

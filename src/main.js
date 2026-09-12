@@ -18,6 +18,7 @@ import { buildDetails, updateDetails } from './details.js';
 import { createWeather, WIND } from './weather.js';
 import { createDaytime, buildNightSky } from './daytime.js';
 import { createCinematics } from './cinematics.js';
+import { createInteract } from './interact.js';
 import { buildUI } from './ui.js';
 import { buildSignage } from './signage.js';
 import { createClock } from './cineclock.js';
@@ -280,6 +281,22 @@ const daytime = createDaytime({
 
 const { camera, controls } = buildCamera(renderer);
 const cine = createCinematics(camera, controls);
+// P2.12: tap-to-interact (hero sliders + radio toggle). Drag/orbit unaffected.
+const interact = createInteract(camera, renderer.domElement);
+for (const s of (arch.sliders || [])) {
+  const it = interact.addSlide(s.node, s.open);
+  if (it) it.t = 0;
+}
+{
+  const rm = (det.group.userData.radioMeshes || []).filter(Boolean);
+  if (rm.length) interact.onTap(rm, () => {
+    try {
+      const st = audio.state ? audio.state() : null;
+      audio.setEnabled(st && typeof st.enabled === 'boolean' ? !st.enabled : true);
+    } catch (e) {}
+  });
+}
+console.log('INTERACT targets: ' + interact.count);
 // Diegetic shop radio (Suzume). Listener attaches lazily on first gesture.
 const audio = createAudio({ camera, scene, zones: LAYOUT });
 {
@@ -342,6 +359,9 @@ const clock = new THREE.Timer(); // r170+: Clock deprecated in favor of Timer
 const __cineQ = new URLSearchParams(location.search);
 const __fixed = __cineQ.get('fixed') === '1';
 const __cine = createClock({ fps: Number(__cineQ.get('fps')) || 30 });
+// P2.13: ?lodfar=1 forces far-tier updates to prove the throttled path executes.
+const lodQ = __cineQ.get('lodfar') === '1';
+let lodTick = 0;
 window.__cine = {
   get frame() { return __cine.frame; },
   get t() { return __cine.t; },
@@ -364,11 +384,20 @@ function animate() {
   }
   if (dt > 0) fpsEMA += ((1 / Math.max(dt, 1e-3)) - fpsEMA) * 0.05;
 
+  // P2.13: distance-tiered updates (near full / mid half-rate / far quarter).
+  // Current camera range (≤48m) is always tier 0 — verified no behavior change.
+  // ?lodfar=1 forces tier 2 to prove the path executes (console + visuals hold).
+  lodTick++;
+  const lodTier = lodQ ? 2 : (camera.position.length() < 60 ? 0 : camera.position.length() < 120 ? 1 : 2);
+  const lodFull = lodTier === 0 || (lodTier === 1 ? lodTick % 2 === 0 : lodTick % 4 === 0);
+
+  if (lodFull) {
   pond.update(t, weather);
   pondTmp.copy(pondBase).lerp(scene.fog.color, 0.35);
   pond.waterMat.color.lerp(pondTmp, 0.08);
   atmo.update(t, dt);
   for (const tick of tickers) tick(t);
+  }
 
   // hero noren sway + hanging lantern sway/flicker (v1 life, kept)
   arch.noren.children.forEach((strip, i) => {
@@ -387,16 +416,16 @@ function animate() {
       : (ds === 'SUNSET' || ds === 'BLUE_HOUR') ? 0.45 : 0;
     power.update(dt, t, weather.state, night);
   }
-  fire.update(t, dt, windAt(7.5, 24.5, t));
-  night.setMoon(daytime.state === 'NIGHT' ? 1 : 0);
-  cine.update(dt);
+  if (lodFull) fire.update(t, dt, windAt(7.5, 24.5, t));
+  night.setMoon(daytime.state === 'NIGHT' ? 1 : 0);  cine.update(dt);
   audio.update(dt);
 if (det && det.group && !det.group.userData.__householdPushed) {
   det.group.userData.__householdPushed = true;
   for (const c of householdCloth) det.cloth.push(c);
 }
   updateDetails(det, t, WIND);
-  swayVegetation(vegRoots, t, WIND);
+  if (lodFull) swayVegetation(vegRoots, t, WIND);
+  interact.update(dt);
 
   controls.update();
   // dev-overlay camera readout (ui.js reads window.__cam if present, else shows 'n/a')

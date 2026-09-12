@@ -130,6 +130,7 @@ export function buildArchitecture(M) {
   const bayW = w / 5;
   const doorH = railY - (floorY + 0.12);
   const doorY = floorY + 0.12 + doorH / 2;
+  const sliders = []; // P2.12: bay2 slider pair, clickable (slide along local X)
   for (let b = 1; b <= 3; b++) {
     const cx = -hx + bayW * (b + 0.5);
     const s1 = makeShoji(bayW - 0.3, doorH, M);
@@ -137,6 +138,12 @@ export function buildArchitecture(M) {
     const s2 = makeShoji(bayW - 0.3, doorH, M);
     s2.position.set(cx + (bayW - 0.3) / 4, doorY, hz - 0.04);
     g.add(s1, s2);
+    if (b === 2) {
+      sliders.push(
+        { node: s1, closed: s1.position.x, open: s1.position.x - (bayW - 0.3) / 2 },
+        { node: s2, closed: s2.position.x, open: s2.position.x + (bayW - 0.3) / 2 }
+      );
+    }
   }
   // bay4 OPEN: both panels double-stacked over bay3, doorway fully clear
   {
@@ -245,5 +252,5 @@ export function buildArchitecture(M) {
     g.add(basin);
   }
 
-  return { group: g, noren, rainChain, openBayX: -hx + bayW * 4.5 };
+  return { group: g, noren, rainChain, openBayX: -hx + bayW * 4.5, sliders };
 }
