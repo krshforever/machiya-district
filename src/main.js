@@ -43,6 +43,13 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap; // r165+: PCF is soft by default (PCFSoft removed)
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.06;
+// Dev comparison link (?tone=agx|neutral|aces): no visual claim made here —
+// pick the winner eyes-on-hardware. Default stays ACES (unchanged look).
+try {
+  const tq = new URLSearchParams(location.search).get('tone');
+  if (tq === 'agx' && THREE.AgXToneMapping !== undefined) renderer.toneMapping = THREE.AgXToneMapping;
+  else if (tq === 'neutral' && THREE.NeutralToneMapping !== undefined) renderer.toneMapping = THREE.NeutralToneMapping;
+} catch (e) { /* guarded: tone stays ACES */ }
 document.getElementById('app').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
