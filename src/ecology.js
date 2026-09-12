@@ -79,17 +79,28 @@ export function buildEcology(M) {
     scene_add(g, tufts);
   });
 
-  // --- far forest: canopy blobs + trunks, TWO draws for the whole region ---
+  // --- far forest: canopy blobs + trunks, THREE draws for the whole region ---
+  // REMASTERED-H: two silhouettes — broadleaf crowns vs mountain conifers
+  // (round lumps in a single silhouette read as fog blobs, not forest).
   {
     const R = streamFor(11, 5, 105);
-    const canopyGeo = new THREE.IcosahedronGeometry(1.7, 1);
+    const broadGeo = new THREE.IcosahedronGeometry(1.7, 1);
     {
-      const p = canopyGeo.attributes.position;
+      const p = broadGeo.attributes.position;
       for (let i = 0; i < p.count; i++) {
         const f = 1 + (hash2i(i, 31, 9) - 0.5) * 0.45;
         p.setXYZ(i, p.getX(i) * f, p.getY(i) * f * 0.82, p.getZ(i) * f);
       }
-      canopyGeo.computeVertexNormals();
+      broadGeo.computeVertexNormals();
+    }
+    const conGeo = new THREE.IcosahedronGeometry(1.35, 1); // conifer spike
+    {
+      const p = conGeo.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const f = 1 + (hash2i(i, 51, 10) - 0.5) * 0.3;
+        p.setXYZ(i, p.getX(i) * f * 0.8, p.getY(i) * f * 1.7, p.getZ(i) * f * 0.8);
+      }
+      conGeo.computeVertexNormals();
     }
     const trunkGeo = new THREE.CylinderGeometry(0.13, 0.2, 2.4, 6);
     const canopyMat = new THREE.MeshStandardMaterial({ roughness: 0.95 });
@@ -109,32 +120,52 @@ export function buildEcology(M) {
       const sc = b === 'mountain' ? 0.8 + R() * 0.5 : 1.0 + R() * 0.9;
       items.push({ x, y, z, sc, ry: R() * 6.28, biome: b, seed: i });
     }
-    const canopies = new THREE.InstancedMesh(canopyGeo, canopyMat, items.length);
+    const canopies = new THREE.InstancedMesh(broadGeo, canopyMat, items.length);
+    const conifers = new THREE.InstancedMesh(conGeo, canopyMat, items.length);
     const trunks = new THREE.InstancedMesh(trunkGeo, trunkMat, items.length);
     const d = new THREE.Object3D();
     const col = new THREE.Color();
+    let nb = 0, nc = 0, nt = 0;
     items.forEach((t, i) => {
-      d.position.set(t.x, t.y + 2.2 * t.sc, t.z);
-      d.rotation.set(0, t.ry, 0);
-      d.scale.set(t.sc * (0.9 + hash2i(i, 41, 1) * 0.3), t.sc, t.sc * (0.9 + hash2i(i, 42, 2) * 0.3));
-      d.updateMatrix();
-      canopies.setMatrixAt(i, d.matrix);
-      if (t.biome === 'bamboo') col.setHex(0x3f7030);
-      else if (t.biome === 'mountain') col.setHex(0x2e4a34);
-      else col.setHSL(0.02 + hash2i(i, 43, 3) * 0.09, 0.55, 0.32 + hash2i(i, 44, 4) * 0.12);
-      col.offsetHSL(0, 0, (hash2i(i, 45, 5) - 0.5) * 0.05);
-      canopies.setColorAt(i, col);
+      if (t.biome === 'mountain') {
+        // conifer spike, rooted by the shared trunk
+        d.position.set(t.x, t.y + 3.0 * t.sc, t.z);
+        d.rotation.set(0, t.ry, 0);
+        d.scale.set(t.sc * 0.9, t.sc * 1.2, t.sc * 0.9);
+        d.updateMatrix();
+        conifers.setMatrixAt(nc, d.matrix);
+        col.setHSL(0.33 + hash2i(i, 43, 3) * 0.04, 0.45, 0.20 + hash2i(i, 44, 4) * 0.08);
+        col.offsetHSL(0, 0, (hash2i(i, 45, 5) - 0.5) * 0.05);
+        conifers.setColorAt(nc, col);
+        nc++;
+      } else {
+        d.position.set(t.x, t.y + 2.2 * t.sc, t.z);
+        d.rotation.set(0, t.ry, 0);
+        d.scale.set(t.sc * (0.9 + hash2i(i, 41, 1) * 0.3), t.sc, t.sc * (0.9 + hash2i(i, 42, 2) * 0.3));
+        d.updateMatrix();
+        canopies.setMatrixAt(nb, d.matrix);
+        if (t.biome === 'bamboo') col.setHex(0x3f7030);
+        else col.setHSL(0.02 + hash2i(i, 43, 3) * 0.09, 0.6, 0.30 + hash2i(i, 44, 4) * 0.12);
+        col.offsetHSL(0, 0, (hash2i(i, 45, 5) - 0.5) * 0.05);
+        canopies.setColorAt(nb, col);
+        nb++;
+      }
       d.position.set(t.x, t.y + 1.1 * t.sc, t.z);
       d.scale.set(t.sc, t.sc, t.sc);
       d.updateMatrix();
-      trunks.setMatrixAt(i, d.matrix);
+      trunks.setMatrixAt(nt, d.matrix);
+      nt++;
     });
+    canopies.count = nb; conifers.count = nc; trunks.count = nt;
     canopies.instanceMatrix.needsUpdate = true;
+    conifers.instanceMatrix.needsUpdate = true;
     trunks.instanceMatrix.needsUpdate = true;
     if (canopies.instanceColor) canopies.instanceColor.needsUpdate = true;
+    if (conifers.instanceColor) conifers.instanceColor.needsUpdate = true;
     canopies.castShadow = false; canopies.receiveShadow = false;
+    conifers.castShadow = false; conifers.receiveShadow = false;
     trunks.castShadow = false;
-    g.add(canopies, trunks);
+    g.add(canopies, conifers, trunks);
   }
   return { group: g, vegRoots, tickers };
 }

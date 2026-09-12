@@ -48,9 +48,12 @@ export function createDaytime({ renderer, scene, sun, hemi, skyMat = null, house
     fogC.set(A.fog).lerp(new THREE.Color(B.fog), kk);
     if (scene?.fog) {
       scene.fog.color.copy(fogC);
-      const mistK = weather?.mistK ?? 0, rainK = weather?.rainK ?? 0;
-      scene.fog.near = THREE.MathUtils.lerp(30, 8, mistK) - rainK * 6;
-      scene.fog.far = THREE.MathUtils.lerp(140, 45, mistK) - rainK * 25;
+      const mistK = weather?.mistK ?? 0, rainK = weather?.rainK ?? 0, snowK = weather?.snowK ?? 0;
+      // REMASTERED-H: far forest lives 32-137m — clear air must REACH it
+      // (far 140 white-out turned trees into fog-colored blobs). Mist still
+      // closes in; rain/snow add moderate haze.
+      scene.fog.near = THREE.MathUtils.lerp(42, 10, mistK) - rainK * 8 - snowK * 6;
+      scene.fog.far = THREE.MathUtils.lerp(260, 60, mistK) - rainK * 60 - snowK * 50;
     }
     if (hemi) {
       hemi.intensity = THREE.MathUtils.lerp(A.hemi, B.hemi, kk);

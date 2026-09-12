@@ -31,7 +31,10 @@ export function buildLighting(scene, renderer) {
         gl_FragColor = vec4(c, 1.0);
       }`
   });
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(70, 24, 16), skyMat);
+  // REMASTERED-H: r=150 — the 300m terrain rim (mountain lift to ~±150)
+  // must stay INSIDE the sky dome (r=70 left peaks sticking out past the
+  // sky, reading as a hard white wall). Still inside camera far=160.
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(150, 24, 16), skyMat);
   scene.add(sky);
 
   // --- fog: warm haze ---
