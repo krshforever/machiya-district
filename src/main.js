@@ -268,10 +268,16 @@ const atmo = buildAtmosphere(M, {
 scene.add(atmo.group);
 
 // --- weather / time-of-day / night sky ---
+// REMASTERED-B: drainage channel joins pondWaterMats (rain sharpens it too);
+// drip points + street basins flow town → weather (roof → chain → puddle).
+const drainWater = town.group.getObjectByName('drainage')?.userData.waterMat || null;
 const weather = createWeather({
-  scene, pondWaterMats: [pond.waterMat], wetMats: M._wet || [],
+  scene, pondWaterMats: drainWater ? [pond.waterMat, drainWater] : [pond.waterMat],
+  wetMats: M._wet || [],
   heightFn: (x, z) => heightAt(x, z),
   snowMats: [M.stone, M.gravel, M.grass].filter(Boolean),
+  dripPoints: town.dripPoints || [],
+  basins: town.basins || [],
 });
 const night = buildNightSky(scene);
 const daytime = createDaytime({

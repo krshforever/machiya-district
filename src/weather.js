@@ -2,6 +2,7 @@
 // Rain: 800 slanted streak Points + splash rings + puddles. Wetness drives
 // registered materials (roughness down, envMapIntensity up). Wind object shared.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { srand } from './houses.js';
 
 export const WIND = {
@@ -11,8 +12,9 @@ export const WIND = {
 
 const STATES = ['clear', 'windy', 'rainy', 'misty', 'snow'];
 
-export function createWeather({ scene, pondWaterMats = [], wetMats = [], heightFn = null, snowMats = [] } = {}) {
+export function createWeather({ scene, pondWaterMats = [], wetMats = [], heightFn = null, snowMats = [], dripPoints = [], basins = [] } = {}) {
   const R = srand(777);
+  const R2 = srand(778); // REMASTERED-B stream: new draws never reshuffle R() legacy layout
   const grp = new THREE.Group(); grp.name = 'weather'; scene?.add(grp);
   let cur = 'clear', target = 'clear', blend = 1; // blend 0..1 toward target
   let wetness = 0;                                 // 0..1 actual
@@ -37,16 +39,55 @@ export function createWeather({ scene, pondWaterMats = [], wetMats = [], heightF
   for (let i = 0; i < 40; i++) {
     const m = new THREE.Mesh(ringG, splashM.clone());
     m.rotation.x = -Math.PI / 2;
-    m.position.set((R() - 0.5) * 50, 0.06, (R() - 0.5) * 50);
+    const sx = (R() - 0.5) * 50, sz = (R() - 0.5) * 50;
+    // REMASTERED-B: sit on the ground field, not a flat plane (no slope clip)
+    let sy = 0.06;
+    try { const h = groundH(sx, sz); if (Number.isFinite(h)) sy = h + 0.03; } catch (e) {}
+    m.position.set(sx, sy, sz);
     m.userData.ph = R(); grp.add(m); splashes.push(m);
   }
-  // ---- puddles: flat circles near drains, opacity/env-driven ----
+  // ---- puddles: causal water, not random planes ----
+  // (a) chain-base drips: merged ONE mesh (static r~0.3 discs under every
+  //     roof drain; opacity follows wetness). (b) street basins: individual
+  //     meshes that GROW with wetness and shrink dry (visible accumulation).
   const pudM = new THREE.MeshStandardMaterial({ color: 0x20262c, roughness: 0.05, metalness: 0.7, transparent: true, opacity: 0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
-  const puddles = [];
-  for (const [x, z, r] of [[-5.9, 9.6, 1.2], [4, 9.4, 1.5], [12, 9.7, 1.0], [-12, 9.5, 1.1], [0, 4.2, 0.9]]) {
-    const p = new THREE.Mesh(new THREE.CircleGeometry(r, 20), pudM);
-    p.rotation.x = -Math.PI / 2; p.position.set(x, 0.045, z); grp.add(p); puddles.push(p);
+  const dripGeos = [];
+  for (const dr of dripPoints) {
+    const r = 0.3 + R2() * 0.15;
+    const cg = new THREE.CircleGeometry(r, 14);
+    cg.rotateX(-Math.PI / 2);
+    let gy = 0.045;
+    try { const h = groundH(dr.x, dr.z); if (Number.isFinite(h)) gy = h + 0.025; } catch (e) {}
+    cg.translate(dr.x, gy, dr.z);
+    dripGeos.push(cg);
   }
+  if (dripGeos.length) {
+    const merged = mergeGeometries(dripGeos, false);
+    dripGeos.forEach(g => g.dispose());
+    const dm = new THREE.Mesh(merged, pudM);
+    grp.add(dm);
+  }
+  const basinMeshes = [];
+  for (const [x, z, r] of basins) {
+    const p = new THREE.Mesh(new THREE.CircleGeometry(r, 20), pudM);
+    p.rotation.x = -Math.PI / 2; p.position.set(x, 0.045, z); grp.add(p); basinMeshes.push(p);
+  }
+  // ---- eave drips: one Points cloud, drops fall from chain tops to stones ----
+  // 8 drops per drip point, staggered phase. Visible only in rain.
+  const DRIP_PER = 8;
+  const dripN = dripPoints.length * DRIP_PER;
+  const dripPos = new Float32Array(Math.max(1, dripN) * 3);
+  const dripSeed = new Float32Array(Math.max(1, dripN));
+  for (let i = 0; i < dripN; i++) {
+    const dr = dripPoints[i % Math.max(1, dripPoints.length)] || { x: 0, z: 0, top: 4 };
+    dripPos[i * 3] = dr.x; dripPos[i * 3 + 1] = dr.top; dripPos[i * 3 + 2] = dr.z;
+    dripSeed[i] = R2();
+  }
+  const dripGeo = new THREE.BufferGeometry();
+  dripGeo.setAttribute('position', new THREE.BufferAttribute(dripPos, 3));
+  const dripMat = new THREE.PointsMaterial({ color: 0xcfe0ea, size: 0.09, transparent: true, opacity: 0, depthWrite: false });
+  const drips = new THREE.Points(dripGeo, dripMat);
+  drips.frustumCulled = false; grp.add(drips);
 
   // ---- snow: 500 slow flakes with ground collision + accumulation look ----
   const SNOW_N = 500;
@@ -135,7 +176,24 @@ export function createWeather({ scene, pondWaterMats = [], wetMats = [], heightF
         m.roughness = THREE.MathUtils.lerp(m.userData._dry.r, Math.min(0.25, m.userData._dry.r * 0.4), wetness);
         m.envMapIntensity = THREE.MathUtils.lerp(m.userData._dry.e, m.userData._dry.e + 0.9, wetness);
       }
-      pudM.opacity = wetness * 0.75;
+      pudM.opacity = wetness * 0.8;
+      // basins grow/shrink with wetness (accumulation + drying, lagged by wetness lerp)
+      const bs = 0.3 + 0.7 * wetness;
+      for (const b of basinMeshes) b.scale.set(bs, bs, 1);
+      // eave drips fall only while raining (chain tops → stones)
+      dripMat.opacity = rainK * 0.85;
+      if (dripMat.opacity > 0.01 && dripPoints.length) {
+        const dp = dripGeo.attributes.position.array;
+        const slant = WIND.gust(t) * 0.9;
+        for (let i = 0; i < dripN; i++) {
+          const dr = dripPoints[i % dripPoints.length];
+          const fall = ((t * 2.2 + dripSeed[i] * 7) % 1);
+          dp[i * 3] = dr.x + slant * fall * 0.4;
+          dp[i * 3 + 1] = dr.top - fall * (dr.top - 0.1);
+          dp[i * 3 + 2] = dr.z;
+        }
+        dripGeo.attributes.position.needsUpdate = true;
+      }
       for (const w of pondWaterMats) { w.roughness = THREE.MathUtils.lerp(0.18, 0.05, wetness); }
       // snow simulation: drift + fall + ground collision (die + respawn top)
       snow.visible = snowK > 0.01;

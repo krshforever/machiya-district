@@ -164,8 +164,31 @@ export function buildTown({ scene, heroGroup = null } = {}) {
     const ay = 0.6 + (best.h.params?.wallH ?? 3.0);
     serviceDrops.push({ a: [px, 5.9, pz], b: [ax, ay, az] });
   }
+  // REMASTERED-B: roof-drain drip points — world-space xz under every Slice A
+  // rain chain + fall height. Roof → chain → stone → puddle → channel.
+  // Shops face π (local +z → world -z). Pure math, no RNG.
+  const dripPoints = [];
+  const CHAINED = {
+    hero:  { x: 0, z: -1, w: 9, d: 7, rot: 0, top: 4.1 },
+    A:     { x: -10.5, z: -1, w: 6.5, d: 6, rot: 0, top: 3.9 },
+    B:     { x: 9.8, z: -0.5, w: 6, d: 6.5, rot: 0, top: 4.3 },
+    shop1: { x: 14, z: 13.5, w: 7, d: 5, rot: Math.PI, top: 4.4 },
+    shop2: { x: -13, z: 13.5, w: 6.5, d: 5, rot: Math.PI, top: 4.2 },
+  };
+  for (const k of Object.keys(CHAINED)) {
+    const H = CHAINED[k];
+    for (const sx of [1, -1]) {
+      const lx = sx * (H.w / 2 - 0.35), lz = H.d / 2 + 0.5;
+      const wx = H.rot === 0 ? H.x + lx : H.x - lx;
+      const wz = H.rot === 0 ? H.z + lz : H.z - lz;
+      dripPoints.push({ x: wx, z: wz, top: H.top });
+    }
+  }
+  // street basins: low spots flanking the drainage channel (covers/bridges
+  // slow the flow — water sheets here first). [x, z, radius].
+  const basins = [[-5.9, 8.2, 1.3], [10.5, 8.2, 1.2], [0.5, 9.7, 1.0]];
   return {
-    group: town, houses, serviceDrops,
+    group: town, houses, serviceDrops, dripPoints, basins,
     lampPositions: [
       [-4.2, 8.9], [6.5, 8.9], [15.5, 8.9], [-13.5, 8.9], // main street corners
       [-5.0, -6.5], [8.0, -6.5],                          // back lane
