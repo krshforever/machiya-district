@@ -349,6 +349,40 @@ export function buildUI(opts) {
   var abBody = addSection('about', 'ABOUT');
   var ab = mk('div', 'tsuki-about', 'TSUKIMORI 月森 / THE MOON FOREST / LGCY STUDIOS / LGCY AI');
   abBody.appendChild(ab);
+  // Version line + behind/current check (guarded, once, 8s timeout).
+  // Compares the baked build hash against latest main on GitHub.
+  var verLine = mk('div', 'tsuki-note', 'BUILD ' + buildId + ' · checking…');
+  abBody.appendChild(verLine);
+  try {
+    var verCtl = null;
+    try { verCtl = new AbortController(); } catch (e) { verCtl = null; }
+    var verTo = setTimeout(function () { try { if (verCtl) verCtl.abort(); } catch (e) {} }, 8000);
+    var verOpts = verCtl ? { signal: verCtl.signal } : {};
+    fetch('https://api.github.com/repos/krshforever/tsukimori/commits/main?per_page=1', verOpts)
+      .then(function (r) { try { clearTimeout(verTo); } catch (e) {} return r.ok ? r.json() : null; })
+      .then(function (j) {
+        var latest = (j && j.sha) ? String(j.sha).slice(0, 7) : null;
+        var cur = (buildId.split(' ')[0] || '').toLowerCase();
+        var msg;
+        if (!latest) msg = 'BUILD ' + buildId + ' · ● OFFLINE';
+        else if (cur && latest.toLowerCase() === cur) msg = 'BUILD ' + buildId + ' · ● CURRENT';
+        else msg = 'BUILD ' + buildId + ' · ● UPDATE AVAILABLE (' + latest + ')';
+        try { verLine.textContent = msg; } catch (e) {}
+        try { window.__updateCheck = { latest: latest, current: cur, build: buildId }; } catch (e) {}
+      })
+      .catch(function () {
+        try { clearTimeout(verTo); } catch (e) {}
+        try { verLine.textContent = 'BUILD ' + buildId + ' · ● OFFLINE'; } catch (e) {}
+        try { window.__updateCheck = { latest: null, current: null, build: buildId }; } catch (e) {}
+      });
+  } catch (e) {
+    try { verLine.textContent = 'BUILD ' + buildId; } catch (ex) {}
+  }
+
+  // Build stamp baked at build time via vite define (falls back to 'dev').
+  // Powers the ABOUT version line + dev overlay + behind/current check.
+  var buildId = 'dev';
+  try { if (typeof __BUILD_ID__ !== 'undefined' && __BUILD_ID__) buildId = String(__BUILD_ID__); } catch (e) {}
 
   // ---- dev overlay (?dev=1 only, read once) ----
   var devPre = null;
@@ -536,6 +570,12 @@ export function buildUI(opts) {
             }
           } catch (e2) {}
           lines.push('FPS ' + fps + '  calls ' + calls + '  tris ' + tris);
+          try {
+            var uc = null;
+            try { uc = window.__updateCheck || null; } catch (e) {}
+            var ust = !uc ? '' : (!uc.latest ? 'offline' : (uc.latest.toLowerCase() === String(uc.current || '').toLowerCase() ? 'current' : 'BEHIND(' + uc.latest + ')'));
+            lines.push('build ' + buildId + (ust ? '  ' + ust : ''));
+          } catch (e) { try { lines.push('build ' + buildId); } catch (ex) {} }
           lines.push('gl WebGL2  post ' + qcur + '  seed ' + SEED);
           lines.push('cam ' + campos + '  tgt ' + camtgt);
           lines.push(tShort + ' · ' + wShort + ' · ' + label);

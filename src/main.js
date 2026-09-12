@@ -24,6 +24,8 @@ import { createClock } from './cineclock.js';
 import { createPost } from './post.js';
 import { registerObjects, chunkOf, stableId, registryStats } from './world.js';
 import { buildTerrain, buildRiver } from './terrain.js';
+import { buildRoads } from './roads.js';
+import { buildEcology } from './ecology.js';
 import {
   buildMapleVar, buildBambooCluster, buildShrub, buildGrassTufts,
   buildVines, buildMoss, swayVegetation,
@@ -70,6 +72,11 @@ heroGroup.add(arch.group, roof.group, interior.group);
 upgradeHero(heroGroup, { nageshiY: 2.2, eaveY: 3.7, doorX: arch.openBayX });
 
 // --- district: town (repositions heroGroup to its lot), details, pond, vegetation ---
+// Animation registries first: every system below pushes here (town, roads,
+// ecology, district plantings). Declared up top to avoid TDZ ordering bugs.
+const vegRoots = [];
+const tickers = []; // leaf/culm shimmer updaters, called per frame
+const addSway = (o) => { if (o?.userData?.sway) vegRoots.push(o); if (o?.userData?.tick) tickers.push(o.userData.tick); return o; };
 const town = buildTown({ scene, heroGroup });
 // P2.1: district houses enter the world registry (future systems query it).
 // No visual change — same objects, now addressable by chunk + stable ID.
@@ -84,6 +91,14 @@ const terrain = buildTerrain();
 scene.add(terrain.group);
 const river = buildRiver();
 scene.add(river.group);
+// P2.4/P2.5: road network + ecological planting (both read the same terrain
+// truth; plantings avoid roads, water, rock and the village by construction)
+const roads = buildRoads(M);
+scene.add(roads.group);
+const eco = buildEcology(M);
+scene.add(eco.group);
+for (const t of eco.tickers) tickers.push(t);
+for (const r of eco.vegRoots) vegRoots.push(r);
 const det = buildDetails(town);
 scene.add(det.group);
 // NOTE: diegetic audio setup lives after camera creation (createAudio takes
@@ -101,10 +116,8 @@ const pond = buildPond(M);
 pond.group.position.set(-13.5, 0, 7);
 scene.add(pond.group);
 
-// district vegetation (seeded, no twins) — roots collected for wind sway
-const vegRoots = [];
-const tickers = []; // v1 leaf/culm shimmer updaters, called per frame
-const addSway = (o) => { if (o?.userData?.sway) vegRoots.push(o); if (o?.userData?.tick) tickers.push(o.userData.tick); return o; };
+// district vegetation (seeded, no twins) — roots collected for wind sway.
+// (vegRoots/tickers/addSway are declared up top, before town/roads/ecology.)
 [
   [-4.2, 4.6, 1.3, 0.75], [6.8, 4.4, 1.0, 0.55], [-8.2, -6.2, 1.5, 0.9],
   [13.5, -8.5, 1.1, 0.4], [-16, 3.5, 0.9, 0.65],

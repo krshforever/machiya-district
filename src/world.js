@@ -101,7 +101,7 @@ export function biomeAt(x, z) {
   if (Math.abs(z - rz) < 5) return 'riverbank';
   if (h > 9) return 'mountain';
   if (s > 0.45) return 'slope';
-  if (mo > 0.62) return h < 2 ? 'field' : 'bamboo';
+  if (mo > 0.55) return h < 1.2 ? 'field' : 'bamboo'; // moist low slopes (groves), wet flats (paddy)
   if (mo > 0.42) return 'maple';
   if (mo > 0.25) return 'grassland';
   return 'outskirts';
