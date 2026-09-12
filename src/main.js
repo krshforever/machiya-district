@@ -27,6 +27,7 @@ import { buildTerrain, buildRiver } from './terrain.js';
 import { buildRoads } from './roads.js';
 import { buildEcology } from './ecology.js';
 import { buildSettlement } from './settlement.js';
+import { decorateHouse, decorateEntrance } from './household.js';
 import { buildShrine, buildTorii } from './shrine.js';
 import {
   buildMapleVar, buildBambooCluster, buildShrub, buildGrassTufts,
@@ -113,6 +114,36 @@ scene.add(settlement.group);
 // hamlet windows join the night-glow set (daytime reads town.houses downstream)
 for (const h of settlement.houses) {
   town.houses.push({ name: h.name, group: h.group, glowMats: h.glowMats, pos: h.pos });
+}
+// household dressing: covers town.houses + settlement-appended houses above.
+// Runs BEFORE createDaytime (it reads town.houses) — order is load-bearing.
+const householdCloth = [];
+function kindForHouse(h) {
+  if (h.params && h.params.isShop) return 'shop';
+  const n = String(h.name || '').toLowerCase();
+  const wl = h.params && h.params.winLayout;
+  if (n.startsWith('shed') || (Array.isArray(wl) && wl.length && wl.every((v) => !v))) return 'shed';
+  if (n.startsWith('hamlet') || n.startsWith('farm') || n.startsWith('barn')) return 'farm';
+  if (n === 'hero' || n.startsWith('hero')) return 'hero';
+  return 'home';
+}
+function seedForHouse(h, i) {
+  if (h.params && typeof h.params.seed === 'number') return h.params.seed >>> 0;
+  let hh = 2166136261 >>> 0;
+  const s = String(h.name || ('house' + i));
+  for (let k = 0; k < s.length; k++) { hh ^= s.charCodeAt(k); hh = Math.imul(hh, 16777619); }
+  return (hh ^ Math.imul((i + 1) >>> 0, 0x9E3779B1)) >>> 0;
+}
+for (let i = 0; i < town.houses.length; i++) {
+  const h = town.houses[i];
+  const kind = kindForHouse(h);
+  const seed = seedForHouse(h, i);
+  const hp = { ...(h.params || {}), name: h.name, kind, seed };
+  if (kind === 'hero') { hp.w = 10; hp.d = 6.4; hp.wallH = 2.9; } // v1 HOUSE dims (no params entry)
+  const r1 = decorateHouse(h.group, hp, M);
+  const r2 = decorateEntrance(h.group, hp, M);
+  if (r1 && r1.cloth) for (const c of r1.cloth) householdCloth.push(c);
+  if (r2 && r2.cloth) for (const c of r2.cloth) householdCloth.push(c);
 }
 console.log('WORLD registry: ' + JSON.stringify(registryStats())); // after ALL systems registered
 const det = buildDetails(town);
@@ -334,6 +365,10 @@ function animate() {
   night.setMoon(daytime.state === 'NIGHT' ? 1 : 0);
   cine.update(dt);
   audio.update(dt);
+if (det && det.group && !det.group.userData.__householdPushed) {
+  det.group.userData.__householdPushed = true;
+  for (const c of householdCloth) det.cloth.push(c);
+}
   updateDetails(det, t, WIND);
   swayVegetation(vegRoots, t, WIND);
 
