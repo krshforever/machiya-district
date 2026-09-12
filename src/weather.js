@@ -214,12 +214,15 @@ export function createWeather({ scene, pondWaterMats = [], wetMats = [], heightF
         snowGeo.attributes.position.needsUpdate = true;
       }
       // accumulation look: lerp shared mats toward white (reversible)
+      // REMASTERED-G: roughness writes only while snow exists — at snowK≈0
+      // the wet loop owns roughness (fixes rain-after-snow clobber; color
+      // write is harmless since wet never touches color).
       if (snowWhiten.length) {
         const w = snowK * 0.7;
         for (const m of snowWhiten) {
           if (!m || !m.color || !m.userData._snowSeeded) continue;
           m.color.copy(m.userData._dryColor).lerp(SNOW_TINT, w);
-          if ('roughness' in m) m.roughness = m.userData._dryRough + (0.9 - m.userData._dryRough) * snowK * 0.85;
+          if ('roughness' in m && snowK > 0.001) m.roughness = m.userData._dryRough + (0.9 - m.userData._dryRough) * snowK * 0.85;
         }
       }
       // fog densify handled by daytime via api.fogK(); expose factors:

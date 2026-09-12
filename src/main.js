@@ -341,7 +341,8 @@ for (const s of (arch.sliders || [])) {
   if (it) it.t = 0;
 }
 // REMASTERED-D: every district door leaf slides (§16 — closed by default)
-for (const h of town.houses) {
+// REMASTERED-G: hamlet/farmhouse doors join the circuit (barn has no door)
+for (const h of [...town.houses, ...(settlement.houses || [])]) {
   for (const s of (h.sliders || [])) {
     try {
       const it = interact.addSlide(s.node, s.open);

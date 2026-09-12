@@ -29,7 +29,7 @@ export function buildSettlement(M) {
     const y = heightAt(hp.cx, hp.cz);
     h.group.position.set(hp.cx, y, hp.cz);
     g.add(h.group);
-    houses.push({ name: hp.name, group: h.group, glowMats: hp.glow === false ? [] : h.glowMats, pos: new THREE.Vector3(hp.cx, y, hp.cz), w: hp.w, d: hp.d });
+    houses.push({ name: hp.name, group: h.group, glowMats: hp.glow === false ? [] : h.glowMats, sliders: h.sliders || [], pos: new THREE.Vector3(hp.cx, y, hp.cz), w: hp.w, d: hp.d });
     const [ccx, ccz] = chunkOf(hp.cx, hp.cz);
     registerObjects(ccx, ccz, [{ id: stableId('house', ccx, ccz, base + i), type: 'house', x: hp.cx, z: hp.cz, y, data: { name: hp.name } }]);
   }
