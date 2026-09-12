@@ -286,7 +286,11 @@ const weather = createWeather({
   scene, pondWaterMats: drainWater ? [pond.waterMat, drainWater] : [pond.waterMat],
   wetMats: M._wet || [],
   heightFn: (x, z) => heightAt(x, z),
-  snowMats: [M.stone, M.gravel, M.grass].filter(Boolean),
+  // REMASTERED-F: roofs accumulate snow (§11 — tiles/ridge whiten with cover).
+  // Instance tile tones multiply material color, so the shared lerp whitens
+  // per-tile variation correctly. Eave undersides stay dark (sheltered) by
+  // exclusion. Reversible on melt via cached dry values.
+  snowMats: [M.stone, M.gravel, M.grass, M.roofTile, M.roofTileAlt, M.ridge].filter(Boolean),
   dripPoints: town.dripPoints || [],
   basins: town.basins || [],
 });
