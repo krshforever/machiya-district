@@ -9,13 +9,16 @@ export const WIND = {
   gust(t) { return this.strength * (0.65 + 0.35 * Math.sin(t * 0.6) * Math.sin(t * 0.23 + 1.7)); },
 };
 
-const STATES = ['clear', 'windy', 'rainy', 'misty'];
+const STATES = ['clear', 'windy', 'rainy', 'misty', 'snow'];
 
-export function createWeather({ scene, pondWaterMats = [], wetMats = [] } = {}) {
+export function createWeather({ scene, pondWaterMats = [], wetMats = [], heightFn = null, snowMats = [] } = {}) {
   const R = srand(777);
   const grp = new THREE.Group(); grp.name = 'weather'; scene?.add(grp);
   let cur = 'clear', target = 'clear', blend = 1; // blend 0..1 toward target
   let wetness = 0;                                 // 0..1 actual
+  let snowK = 0;                                   // 0..1 actual (snow cover + flakes)
+  const groundH = (typeof heightFn === 'function') ? heightFn : () => 0;
+  const snowWhiten = Array.isArray(snowMats) ? snowMats : [];
 
   // ---- rain streaks: Points, velocity in shader-less update via position offset ----
   const N = 800;
@@ -45,6 +48,51 @@ export function createWeather({ scene, pondWaterMats = [], wetMats = [] } = {}) 
     p.rotation.x = -Math.PI / 2; p.position.set(x, 0.045, z); grp.add(p); puddles.push(p);
   }
 
+  // ---- snow: 500 slow flakes with ground collision + accumulation look ----
+  const SNOW_N = 500;
+  const SNOW_TOP = 26.0, SNOW_SPAN = 60.0; // respawn volume over settlement
+  const snowPos = new Float32Array(SNOW_N * 3);
+  const snowSpd = new Float32Array(SNOW_N); // fall speed 0.6..1.2 m/s
+  const snowPhz = new Float32Array(SNOW_N);
+  for (let i = 0; i < SNOW_N; i++) {
+    snowPos[i * 3] = (R() - 0.5) * SNOW_SPAN;
+    snowPos[i * 3 + 1] = R() * SNOW_TOP;
+    snowPos[i * 3 + 2] = (R() - 0.5) * SNOW_SPAN;
+    snowSpd[i] = 0.6 + R() * 0.6;
+    snowPhz[i] = R() * Math.PI * 2;
+  }
+  const snowGeo = new THREE.BufferGeometry();
+  snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+  const snowDot = (() => {
+    const c = document.createElement('canvas'); // CALL time only, never module top
+    c.width = 32; c.height = 32;
+    const x = c.getContext('2d');
+    const grad = x.createRadialGradient(16, 16, 1, 16, 16, 15);
+    grad.addColorStop(0, 'rgba(255,255,255,1)');
+    grad.addColorStop(0.6, 'rgba(255,255,255,0.8)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = grad; x.fillRect(0, 0, 32, 32);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  })();
+  const snowMat = new THREE.PointsMaterial({
+    map: snowDot, size: 0.16, transparent: true, opacity: 0,
+    depthWrite: false, sizeAttenuation: true, color: 0xf2f5f9,
+  });
+  const snow = new THREE.Points(snowGeo, snowMat);
+  snow.frustumCulled = false;
+  snow.visible = false;
+  scene?.add(snow);
+  // accumulation look: cache dry values once (mirrors wetMats userData pattern)
+  const SNOW_TINT = new THREE.Color(0xe8edf2);
+  for (const m of snowWhiten) {
+    if (!m || !m.color || m.userData._snowSeeded) continue;
+    m.userData._snowSeeded = true;
+    m.userData._dryColor = m.color.clone();
+    m.userData._dryRough = ('roughness' in m) ? m.roughness : 1.0;
+  }
+
   const api = {
     get state() { return blend >= 1 ? target : `${cur}>${target}`; },
     get wetness() { return wetness; },
@@ -52,10 +100,12 @@ export function createWeather({ scene, pondWaterMats = [], wetMats = [] } = {}) 
     update(dt, t) {
       blend = Math.min(1, blend + dt / 3); // ~3s transitions
       const k = blend * blend * (3 - 2 * blend);
-      const isRain = target === 'rainy', isMist = target === 'misty', isWind = target === 'windy';
+      const isRain = target === 'rainy', isMist = target === 'misty', isSnow = target === 'snow';
       const rainK = (isRain ? k : 1 - k) * (target === 'rainy' ? 1 : 0) + (cur === 'rainy' && target !== 'rainy' ? 1 - k : 0);
+      // snow cover follows the same transition shape as wetness
+      snowK += (((target === 'snow') ? k : (cur === 'snow' ? 1 - k : 0)) - snowK) * Math.min(1, dt * 0.8);
       // wind strength target per state
-      const wGoal = target === 'windy' ? 1.2 : target === 'rainy' ? 0.8 : target === 'misty' ? 0.15 : 0.45;
+      const wGoal = target === 'windy' ? 1.2 : target === 'rainy' ? 0.8 : target === 'misty' ? 0.15 : target === 'snow' ? 0.55 : 0.45;
       WIND.strength += (wGoal * (target === 'windy' ? 1 : k || 1) - WIND.strength) * Math.min(1, dt * 1.2);
       if (target === 'windy') WIND.strength += (1.2 - WIND.strength) * Math.min(1, dt);
       // rain fall
@@ -87,12 +137,41 @@ export function createWeather({ scene, pondWaterMats = [], wetMats = [] } = {}) 
       }
       pudM.opacity = wetness * 0.75;
       for (const w of pondWaterMats) { w.roughness = THREE.MathUtils.lerp(0.18, 0.05, wetness); }
+      // snow simulation: drift + fall + ground collision (die + respawn top)
+      snow.visible = snowK > 0.01;
+      snowMat.opacity = 0.9 * snowK;
+      if (snow.visible) {
+        const gust = WIND.gust(t); // blizzard slant scales with gust automatically
+        const drift = gust * (1.2 + snowK * 1.0);
+        for (let i = 0; i < SNOW_N; i++) {
+          let y = snowPos[i * 3 + 1] - snowSpd[i] * dt;
+          let x = snowPos[i * 3] + (drift + Math.sin(t * 1.3 + snowPhz[i]) * 0.25) * dt;
+          const z = snowPos[i * 3 + 2] + Math.cos(t * 1.1 + snowPhz[i]) * 0.2 * dt;
+          if (y <= groundH(x, z) + 0.03) { // landed: respawn top (deterministic hash of phase)
+            y = SNOW_TOP * (0.85 + 0.15 * Math.sin(snowPhz[i] + t * 0.05));
+            x = (((snowPhz[i] * 97.31) % 1) + 1) % 1 * SNOW_SPAN - SNOW_SPAN / 2;
+          }
+          snowPos[i * 3] = x; snowPos[i * 3 + 1] = y; snowPos[i * 3 + 2] = z;
+        }
+        snowGeo.attributes.position.needsUpdate = true;
+      }
+      // accumulation look: lerp shared mats toward white (reversible)
+      if (snowWhiten.length) {
+        const w = snowK * 0.7;
+        for (const m of snowWhiten) {
+          if (!m || !m.color || !m.userData._snowSeeded) continue;
+          m.color.copy(m.userData._dryColor).lerp(SNOW_TINT, w);
+          if ('roughness' in m) m.roughness = m.userData._dryRough + (0.9 - m.userData._dryRough) * snowK * 0.85;
+        }
+      }
       // fog densify handled by daytime via api.fogK(); expose factors:
       api.rainK = rainK;
       api.mistK = (target === 'misty' ? k : cur === 'misty' ? 1 - k : 0);
-      api.dimK = isRain ? k * 0.55 : 0; // sun dim request
+      api.dimK = (isRain ? k * 0.55 : 0) + (isSnow ? k * 0.3 : 0); // snow day dims slightly
+      api.snowK = snowK;
+      api.fogK = Math.max(api.mistK, snowK * 0.6);
     },
-    rainK: 0, mistK: 0, dimK: 0,
+    rainK: 0, mistK: 0, dimK: 0, snowK: 0, fogK: 0,
   };
   return api;
 }

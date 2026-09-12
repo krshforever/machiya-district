@@ -16,8 +16,8 @@ export function buildUI(opts) {
 
   var TIME_KEYS = ['DAWN', 'DAY', 'GOLDEN', 'SUNSET', 'BLUE_HOUR', 'NIGHT', 'MOONLIT', 'RAIN_NIGHT', 'MIST_NIGHT'];
   var TIME_SHORT = { DAWN: 'DAWN', DAY: 'DAY', GOLDEN: 'GOLDEN', SUNSET: 'SUNSET', BLUE_HOUR: 'BLUE', NIGHT: 'NIGHT', MOONLIT: 'MOON', RAIN_NIGHT: 'RAIN', MIST_NIGHT: 'MIST' };
-  var WX_KEYS = ['clear', 'windy', 'rainy', 'misty'];
-  var WX_SHORT = { clear: 'CLEAR', windy: 'WINDY', rainy: 'RAIN', misty: 'MIST' };
+  var WX_KEYS = ['clear', 'windy', 'rainy', 'misty', 'snow'];
+  var WX_SHORT = { clear: 'CLEAR', windy: 'WINDY', rainy: 'RAIN', misty: 'MIST', snow: 'SNOW' };
   var QUALITIES = ['low', 'medium', 'high', 'cinematic'];
   var Q_LABEL = { low: 'LOW', medium: 'MED', high: 'HIGH', cinematic: 'CINE' };
   var POST_MAP = { low: 'off', medium: 'off', high: 'off', cinematic: 'high' };

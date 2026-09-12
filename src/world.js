@@ -115,6 +115,21 @@ export function slopeAt(x, z) {
   const dz = heightAt(x, z + e) - heightAt(x, z - e);
   return Math.hypot(dx, dz) / (2 * e); // rise per metre
 }
+// windAt(x, z, t, base=0.45): pure deterministic approximation of the global
+// gust × terrain channeling. Same module as heightAt (no imports, no cycles).
+// factor = 1 + river-channel speedup + slope speedup. Smoke/leaves consume it
+// where a position is known; global WIND.gust(t) remains the fallback.
+export function windAt(x, z, t, base = 0.45) {
+  const gust = 0.65 + 0.35 * Math.sin(t * 0.6) * Math.sin(t * 0.23 + 1.7);
+  // River channeling: sample valley depth via heightAt (cheap, 3 taps).
+  const h0 = heightAt(x, z);
+  const hx = heightAt(x + 1.5, z);
+  const hz = heightAt(x, z + 1.5);
+  const slope = Math.min(1.5, Math.abs(hx - h0) + Math.abs(hz - h0));
+  const valley = Math.max(0, Math.min(1, (h0 + 2.0) / 6.0)); // lower ground -> more channel
+  const channel = 1 + 0.35 * (1 - valley) + slope * 0.45;
+  return base * 2 * gust * channel; // base 0.45 -> mean ≈ gust scale of WIND
+}
 // moisture 0..1: lowland + noise + river proximity
 export function moistureAt(x, z) {
   const h = heightAt(x, z);

@@ -22,7 +22,9 @@ import { buildUI } from './ui.js';
 import { buildSignage } from './signage.js';
 import { createClock } from './cineclock.js';
 import { createPost } from './post.js';
-import { registerObjects, chunkOf, stableId, registryStats } from './world.js';
+import { registerObjects, chunkOf, stableId, registryStats, heightAt, windAt } from './world.js';
+import { createPower } from './power.js';
+import { buildFire } from './fire.js';
 import { buildTerrain, buildRiver } from './terrain.js';
 import { buildRoads } from './roads.js';
 import { buildEcology } from './ecology.js';
@@ -148,6 +150,11 @@ for (let i = 0; i < town.houses.length; i++) {
 console.log('WORLD registry: ' + JSON.stringify(registryStats())); // after ALL systems registered
 const det = buildDetails(town);
 scene.add(det.group);
+// P2.10: street-lamp power circuits (daytime owns intensities; power scales after)
+const power = createPower({ lampLights: det.lampLights, lampGlows: det.lampGlows, houses: town.houses });
+// P2.10: farmstead fire pit (farmhouse firewood causality), open ground at (7.5,24.5)
+const fire = buildFire(M, 7.5, 24.5, heightAt(7.5, 24.5));
+scene.add(fire.group);
 // NOTE: diegetic audio setup lives after camera creation (createAudio takes
 // `camera`; referencing it here would throw a TDZ error). See below.
 
@@ -248,11 +255,22 @@ for (const [x, z, r, seed] of [[-2.5, -5.5, 0.85, 81], [3.0, -5.2, 1.0, 82]]) {
   mkPebbles(1, 6, 8.2, 94);   // S street shoulder, clear of edging + drain
 }
 
-const atmo = buildAtmosphere(M);
+const atmo = buildAtmosphere(M, {
+  // P2.10: leaves originate at real canopies (district maples)
+  leafSources: [
+    { x: -4.2, z: 4.6, r: 2.4 }, { x: 6.8, z: 4.4, r: 2.4 },
+    { x: -8.2, z: -6.2, r: 2.4 }, { x: 13.5, z: -8.5, r: 2.4 },
+    { x: -16.0, z: 3.5, r: 2.6 },
+  ],
+});
 scene.add(atmo.group);
 
 // --- weather / time-of-day / night sky ---
-const weather = createWeather({ scene, pondWaterMats: [pond.waterMat], wetMats: M._wet || [] });
+const weather = createWeather({
+  scene, pondWaterMats: [pond.waterMat], wetMats: M._wet || [],
+  heightFn: (x, z) => heightAt(x, z),
+  snowMats: [M.stone, M.gravel, M.grass].filter(Boolean),
+});
 const night = buildNightSky(scene);
 const daytime = createDaytime({
   renderer, scene, sun, hemi, skyMat, houses: town.houses,
@@ -362,6 +380,14 @@ function animate() {
 
   weather.update(dt, t);
   daytime.update(dt, weather);
+  // P2.10: power AFTER daytime (scales daytime-set lamp intensities; never accumulates)
+  {
+    const ds = daytime.state;
+    const night = (ds === 'NIGHT' || ds === 'MOONLIT' || ds === 'RAIN_NIGHT' || ds === 'MIST_NIGHT') ? 1
+      : (ds === 'SUNSET' || ds === 'BLUE_HOUR') ? 0.45 : 0;
+    power.update(dt, t, weather.state, night);
+  }
+  fire.update(t, dt, windAt(7.5, 24.5, t));
   night.setMoon(daytime.state === 'NIGHT' ? 1 : 0);
   cine.update(dt);
   audio.update(dt);

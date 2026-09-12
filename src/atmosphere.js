@@ -3,9 +3,20 @@ import { fillInstances, mulberry } from './helpers.js';
 import { WIND } from './weather.js'; // cycle-safe: weather.js never imports atmosphere
 
 // Floating dust (Points drift) + looping falling maple leaves (instanced).
-export function buildAtmosphere(M) {
+export function buildAtmosphere(M, opts = {}) {
   const g = new THREE.Group();
   const rnd = mulberry(999);
+  // Leaf origins: round-robin across canopy sources (deterministic).
+  // Fallback (absent) keeps legacy district scatter.
+  const leafSources = Array.isArray(opts.leafSources) ? opts.leafSources : null;
+  function leafOrigin(i) {
+    if (!leafSources || !leafSources.length) return null;
+    const s = leafSources[i % leafSources.length];
+    const ring = (((i * 2654435761) % 1000) + 1000) % 1000 / 1000;
+    const ang = ring * Math.PI * 2 + (i % 7) * 0.13;
+    const rr = (s.r || 2.2) * (0.35 + 0.65 * ((((i * 40503) % 1000) + 1000) % 1000 / 1000));
+    return { x: s.x + Math.cos(ang) * rr, z: s.z + Math.sin(ang) * rr };
+  }
 
   // --- dust motes ---
   const DUST = 170;
@@ -46,9 +57,10 @@ export function buildAtmosphere(M) {
   const col = new THREE.Color();
   const palette = [0xc0392b, 0xd35400, 0xe67e22, 0xa93226];
   for (let i = 0; i < FALL; i++) {
+    const src = leafOrigin(i);
     seeds.push({
-      bx: -6 + (rnd() - 0.5) * 30, // district-wide leaf fall (was: single v1 maple)
-      bz: 2 + (rnd() - 0.5) * 26,
+      bx: src ? src.x : -6 + (rnd() - 0.5) * 30, // canopy-sourced, else legacy scatter
+      bz: src ? src.z : 2 + (rnd() - 0.5) * 26,
       speed: 0.35 + rnd() * 0.4,
       phase: rnd() * 6.28,
       sway: 0.4 + rnd() * 0.7,
