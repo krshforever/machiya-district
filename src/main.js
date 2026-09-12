@@ -26,6 +26,7 @@ import { registerObjects, chunkOf, stableId, registryStats } from './world.js';
 import { buildTerrain, buildRiver } from './terrain.js';
 import { buildRoads } from './roads.js';
 import { buildEcology } from './ecology.js';
+import { buildSettlement } from './settlement.js';
 import {
   buildMapleVar, buildBambooCluster, buildShrub, buildGrassTufts,
   buildVines, buildMoss, swayVegetation,
@@ -84,8 +85,7 @@ town.houses.forEach((h, i) => {
   const [cx, cz] = chunkOf(h.pos.x, h.pos.z);
   registerObjects(cx, cz, [{ id: stableId('house', cx, cz, i), type: h.name === 'hero' ? 'hero' : 'house', x: h.pos.x, z: h.pos.z, y: 0, data: { name: h.name } }]);
 });
-window.__world = { stats: registryStats };
-console.log('WORLD registry: ' + JSON.stringify(registryStats()));
+window.__world = { stats: registryStats }; // live getter (registry fills as systems build)
 // P2.2/P2.3: terrain ring + river (district plateau untouched, base plane stays)
 const terrain = buildTerrain();
 scene.add(terrain.group);
@@ -99,6 +99,14 @@ const eco = buildEcology(M);
 scene.add(eco.group);
 for (const t of eco.tickers) tickers.push(t);
 for (const r of eco.vegRoots) vegRoots.push(r);
+// P2.6: riverside hamlet + terraced paddies (placement-gated, registered)
+const settlement = buildSettlement(M);
+scene.add(settlement.group);
+// hamlet windows join the night-glow set (daytime reads town.houses downstream)
+for (const h of settlement.houses) {
+  town.houses.push({ name: h.name, group: h.group, glowMats: h.glowMats, pos: h.pos });
+}
+console.log('WORLD registry: ' + JSON.stringify(registryStats())); // after ALL systems registered
 const det = buildDetails(town);
 scene.add(det.group);
 // NOTE: diegetic audio setup lives after camera creation (createAudio takes

@@ -56,6 +56,34 @@ function plateauMask(x, z) {
   return t * t * (3 - 2 * t); // 0 inside, ->1 outside
 }
 
+// Human terracing: leveled field rects blend terrain to a fixed level,
+// exactly like the district plateau (humans flatten what they farm).
+const FIELD_FLATS = [
+  { cx: -8, cz: 48.5, w: 14, d: 9, y: null }, // south paddy cluster (level solved below)
+  { cx: 9, cz: 50.5, w: 12, d: 8, y: null },
+];
+function fieldLevel(f) {
+  // deterministic level: sample raw hills at rect center, snap to 0.5m
+  const raw = (fbm(f.cx / 42 + 7.3, f.cz / 42 - 2.1, 501, 4) - 0.5) * 11
+    + Math.max(0, Math.hypot(f.cx, f.cz) - 85) * 0.35;
+  return Math.round(raw * 2) / 2;
+}
+function fieldMask(x, z) {
+  // returns {m, y} of the strongest flat, or null
+  let best = null;
+  for (const f of FIELD_FLATS) {
+    const ex = Math.max(Math.abs(x - f.cx) - f.w / 2, 0);
+    const ez = Math.max(Math.abs(z - f.cz) - f.d / 2, 0);
+    const d = Math.hypot(ex, ez);
+    const t = Math.min(Math.max(d / 6, 0), 1);
+    const m = 1 - (t * t * (3 - 2 * t)); // 1 inside, ->0 at 6m edge
+    if (m > 0 && (!best || m > best.m)) best = { m, y: fieldLevel(f) };
+  }
+  return best;
+}
+export function fieldFlats() {
+  return FIELD_FLATS.map((f) => ({ ...f, y: fieldLevel(f) }));
+}
 // --- analytic height field (metres) ---
 function sstep(a, b, x) {
   const t = Math.min(Math.max((x - a) / (b - a), 0), 1);
@@ -75,7 +103,11 @@ export function heightAt(x, z) {
   const rd = Math.abs(z - rz);
   const prof = -1.6 + 2.2 * sstep(0, 8, rd);
   const t = sstep(7, 14, rd);
-  return prof * (1 - t) + h * t;
+  let out = prof * (1 - t) + h * t;
+  // terraced fields override everything (humans level what they farm)
+  const f = fieldMask(x, z);
+  if (f && f.m > 0) out = f.y * f.m + out * (1 - f.m);
+  return out;
 }
 export function slopeAt(x, z) {
   const e = 0.6;
