@@ -188,6 +188,7 @@ export function generateHouse(p = {}) {
   }
 
   const glowMats = [];
+  const sliders = []; // REMASTERED-D: door panels are real sliding leaves (§16)
   // ---- windows / doors (individual meshes: paper glow controllable per house) ----
   const winGroup = new THREE.Group();
   for (let c = 0; c < cols; c++) {
@@ -202,6 +203,11 @@ export function generateHouse(p = {}) {
       const dp = new THREE.Mesh(new THREE.BoxGeometry(ww / 2 - 0.03, 2.0, 0.05),
         mat('woodAged', MwoodA)); dp.position.set(cx - ww / 4, y0 + 1.0, d / 2 + 0.06); winGroup.add(dp);
       const dp2 = dp.clone(); dp2.position.x = cx + ww / 4; winGroup.add(dp2);
+      // slide into wall pockets (local X — correct under any group rotation)
+      sliders.push(
+        { node: dp, open: cx - ww / 4 - (ww / 2 - 0.02) },
+        { node: dp2, open: cx + ww / 4 + (ww / 2 - 0.02) },
+      );
       const pullG = new THREE.CylinderGeometry(0.02, 0.02, 0.16, 6);
       for (const px of [cx - 0.08, cx + 0.08]) {
         const pull = new THREE.Mesh(pullG, Miron()); pull.position.set(px, y0 + 1.0, d / 2 + 0.1); winGroup.add(pull);
@@ -403,7 +409,7 @@ export function generateHouse(p = {}) {
   }
 
   g.traverse(o => { if (o.isMesh && o.material?.isMeshStandardMaterial && _H.registerWet) _H.registerWet(o.material); });
-  return { group: g, glowMats, dims: { w, d, wallH }, roofTopY: roofY + rise };
+  return { group: g, glowMats, sliders, dims: { w, d, wallH }, roofTopY: roofY + rise };
 }
 
 /** upgradeHero(heroGroup) — additive joinery/interior upgrade; never rebuilds. Safe to call twice (guarded). */

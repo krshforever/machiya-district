@@ -105,6 +105,7 @@ function emitBucket(group, bucket, mat) {
 // =====================================================================
 export function decorateHouse(group, hp, M) {
   const cloth = [];
+  const glow = [];
   const mats = resolveMats(M);
   const w = Math.max(2.2, hp.w ?? 3.4);
   const d = Math.max(2.4, hp.d ?? 3.6);
@@ -114,13 +115,19 @@ export function decorateHouse(group, hp, M) {
   const sideX = w / 2 - 0.2; // inner side planes
   const hw = Math.max(0.8, sideX - 0.35);
 
-  if (kind === 'home') buildHome(group, hp, mats, { w, d, wallH, zBack, sideX, hw });
+  if (kind === 'home') {
+    const r = buildHome(group, hp, mats, { w, d, wallH, zBack, sideX, hw });
+    if (r && r.glow) for (const gm of r.glow) glow.push(gm);
+  }
   else if (kind === 'shop') buildShop(group, hp, mats, { w, d, wallH, zBack, sideX, hw }, cloth);
   else if (kind === 'farm' || kind === 'shed') buildFarm(group, hp, mats, { w, d, wallH, zBack, sideX, hw });
   else if (kind === 'hero') buildHero(group, hp, mats, { w, d, wallH, zBack, sideX, hw });
-  else buildHome(group, hp, mats, { w, d, wallH, zBack, sideX, hw });
+  else {
+    const r = buildHome(group, hp, mats, { w, d, wallH, zBack, sideX, hw });
+    if (r && r.glow) for (const gm of r.glow) glow.push(gm);
+  }
 
-  return { cloth };
+  return { cloth, glow };
 }
 
 function buildHome(group, hp, mats, B) {
@@ -171,9 +178,54 @@ function buildHome(group, hp, mats, B) {
     pushCyl(cer, 0.09, 0.09, 0.026, 8, kx + 0.16 + (i % 2) * 0.02, YF + CLR + 0.24 + 0.012 + 0.013 + Math.floor(i / 2) * 0.03, kz - 0.12 + i * 0.11);
   }
 
+  // REMASTERED-D tail (appended last — earlier rng draws bit-identical):
+  // books row on the middle shelf + broom in the corner + TV corner (§18/§22)
+  const glow = [];
+  const midBoard = boardYs.length > 1 ? boardYs[1] : boardYs[0];
+  if (midBoard !== undefined) {
+    let bx0 = cx - shelfW / 2 + 0.25;
+    for (let i = 0; i < 5; i++) {
+      const bw = 0.035 + rng() * 0.03, bh = 0.17 + rng() * 0.08;
+      pushBox(dark, bw, bh, 0.13, bx0, YF + CLR + midBoard + 0.025 + bh / 2, cz + (rng() - 0.5) * 0.02);
+      bx0 += bw + 0.012;
+    }
+  }
+  // broom leaning at the -X back corner (stick + straw head)
+  const brx = -(sideX - 0.28), brz = zBack + 0.35;
+  pushStick(wood, 0.016, 1.15, brx, YF + CLR + 0.57, brz, 0.22, 'x');
+  pushBox(dark, 0.07, 0.22, 0.09, brx, YF + CLR + 0.13, brz + 0.12);
+
   emitBucket(group, wood, mats.wood);
   emitBucket(group, dark, mats.dark);
   emitBucket(group, cer, mats.ceramic);
+
+  // TV corner: stand + cab + glass screen + rod antenna (deterministic placement,
+  // no rng — zero stream impact). Screen joins the night-glow circuit.
+  {
+    const tx = hw - 0.35, tz = 1.15;
+    const stand = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.4, 0.42), mats.wood);
+    stand.position.set(tx, YF + CLR + 0.2, tz);
+    stand.castShadow = stand.receiveShadow = true;
+    group.add(stand);
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.4, 0.36), mats.dark);
+    cab.position.set(tx, YF + CLR + 0.4 + 0.2, tz);
+    cab.castShadow = true;
+    group.add(cab);
+    const screenM = new THREE.MeshStandardMaterial({
+      color: 0x0c1016, roughness: 0.15, metalness: 0.4,
+      emissive: 0x9db8d8, emissiveIntensity: 0,
+    });
+    const scr = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.3, 0.02), screenM);
+    scr.position.set(tx, YF + CLR + 0.4 + 0.2, tz - 0.19);
+    scr.rotation.y = Math.PI;
+    group.add(scr);
+    glow.push(screenM);
+    const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.5, 6), mats.dark);
+    ant.position.set(tx + 0.15, YF + CLR + 0.4 + 0.4 + 0.25, tz);
+    ant.rotation.z = 0.25;
+    group.add(ant);
+  }
+  return { glow };
 }
 
 function buildShop(group, hp, mats, B, cloth) {

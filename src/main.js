@@ -148,6 +148,8 @@ for (let i = 0; i < town.houses.length; i++) {
   const r2 = decorateEntrance(h.group, hp, M);
   if (r1 && r1.cloth) for (const c of r1.cloth) householdCloth.push(c);
   if (r2 && r2.cloth) for (const c of r2.cloth) householdCloth.push(c);
+  // REMASTERED-D: household electronics join the night-glow circuit
+  if (r1 && r1.glow && h.glowMats) for (const gm of r1.glow) h.glowMats.push(gm);
 }
 console.log('WORLD registry: ' + JSON.stringify(registryStats())); // after ALL systems registered
 const det = buildDetails(town);
@@ -333,6 +335,15 @@ const interact = createInteract(camera, renderer.domElement);
 for (const s of (arch.sliders || [])) {
   const it = interact.addSlide(s.node, s.open);
   if (it) it.t = 0;
+}
+// REMASTERED-D: every district door leaf slides (§16 — closed by default)
+for (const h of town.houses) {
+  for (const s of (h.sliders || [])) {
+    try {
+      const it = interact.addSlide(s.node, s.open);
+      if (it) it.t = 0;
+    } catch (e) {}
+  }
 }
 {
   const rm = (det.group.userData.radioMeshes || []).filter(Boolean);

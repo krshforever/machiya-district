@@ -98,7 +98,7 @@ export function buildTown({ scene, heroGroup = null } = {}) {
     h.group.position.set(lot.cx, 0, lot.cz);
     if (lot.kind === 'shop') h.group.rotation.y = Math.PI;
     town.add(h.group);
-    houses.push({ name: lot.name, params: hp, group: h.group, glowMats: h.glowMats, pos: h.group.position.clone() });
+    houses.push({ name: lot.name, params: hp, group: h.group, glowMats: h.glowMats, sliders: h.sliders || [], pos: h.group.position.clone() });
     winSets.push(h);
   }
 
