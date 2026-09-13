@@ -94,6 +94,66 @@ function leafClusterDraw(seed) {
   };
 }
 
+// T2b: species leaf cards with veins (discourse-validated: runtime procedural
+// leaf texture beats generic blobs). Each 128px, light-valued so instance tint
+// carries species hue. AlphaTest cutout, shared across all trees of a species.
+function speciesLeafDraw(kind, seed) {
+  return (g, s) => {
+    const rnd = mulberry(seed);
+    g.clearRect(0, 0, s, s);
+    const leaf = (x, y, w, h, a, v) => {
+      g.fillStyle = `rgb(${(v * 0.72) | 0},${v | 0},${(v * 0.62) | 0})`;
+      g.globalAlpha = 0.96;
+      g.beginPath(); g.ellipse(x, y, w, h, a, 0, Math.PI * 2); g.fill();
+      g.globalAlpha = 0.55; g.strokeStyle = '#33502f'; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(x - Math.cos(a) * w, y - Math.sin(a) * w);
+      g.lineTo(x + Math.cos(a) * w, y + Math.sin(a) * w); g.stroke();
+    };
+    if (kind === 'spray') { // sugi: stem + short spiral needles
+      g.strokeStyle = '#8a9a7a'; g.lineWidth = 2; g.globalAlpha = 0.9;
+      g.beginPath(); g.moveTo(s * 0.5, s * 0.95); g.lineTo(s * 0.5, s * 0.08); g.stroke();
+      for (let i = 0; i < 26; i++) {
+        const y = s * 0.1 + rnd() * s * 0.8, side = i % 2 ? 1 : -1;
+        const v = 150 + rnd() * 70;
+        g.fillStyle = `rgb(${(v * 0.7) | 0},${v | 0},${(v * 0.6) | 0})`;
+        g.globalAlpha = 0.95;
+        g.beginPath();
+        g.ellipse(s * 0.5 + side * (4 + rnd() * 9), y, 2 + rnd() * 2.5, 5 + rnd() * 5, side * 0.9, 0, Math.PI * 2);
+        g.fill();
+      }
+    } else if (kind === 'ovate') { // keyaki: serrated ovals, opposite pairs
+      for (let i = 0; i < 7; i++) {
+        const x = s * 0.2 + rnd() * s * 0.6, y = s * 0.15 + rnd() * s * 0.7;
+        leaf(x, y, 9 + rnd() * 7, 5.5 + rnd() * 4, (rnd() - 0.5) * 1.2, 150 + rnd() * 70);
+      }
+    } else if (kind === 'fascicle') { // matsu: long needle bundles from sheath points
+      for (let b = 0; b < 4; b++) {
+        const bx = s * 0.25 + b * s * 0.17, by = s * 0.85 - (b % 2) * s * 0.1;
+        for (let i = 0; i < 8; i++) {
+          const a = -Math.PI / 2 + (i - 3.5) * 0.16 + (rnd() - 0.5) * 0.1;
+          const len = s * (0.3 + rnd() * 0.18), v = 140 + rnd() * 60;
+          g.strokeStyle = `rgb(${(v * 0.68) | 0},${v | 0},${(v * 0.58) | 0})`;
+          g.lineWidth = 2.2; g.globalAlpha = 0.95;
+          g.beginPath(); g.moveTo(bx, by);
+          g.lineTo(bx + Math.cos(a) * len, by + Math.sin(a) * len); g.stroke();
+        }
+      }
+    } else if (kind === 'petal') { // sakura: notched 5-petal clusters, pale
+      for (let i = 0; i < 9; i++) {
+        const x = s * 0.2 + rnd() * s * 0.6, y = s * 0.2 + rnd() * s * 0.6;
+        const v = 200 + rnd() * 55;
+        g.fillStyle = `rgb(${v | 0},${(v * 0.88) | 0},${(v * 0.9) | 0})`;
+        g.globalAlpha = 0.95;
+        for (let p = 0; p < 5; p++) {
+          const a = (p / 5) * Math.PI * 2 + rnd();
+          g.beginPath(); g.ellipse(x + Math.cos(a) * 5, y + Math.sin(a) * 5, 5.5, 3.6, a, 0, Math.PI * 2); g.fill();
+        }
+      }
+    }
+    g.globalAlpha = 1;
+  };
+}
+
 function plasterDraw(g, s) {
   const rnd = mulberry(99);
   g.fillStyle = '#efe7d6'; g.fillRect(0, 0, s, s);
@@ -398,6 +458,19 @@ M.soil.needsUpdate = true;
   // mapleLeaf EXCLUDED on purpose: momiji leaves are lobed ShapeGeometry (real
   // leaf silhouettes already) + instance-tinted autumn reds that a green map
   // would muddy. Quads get the cluster card; shaped leaves don't need it.
+  // T2b: species cards replace the generic cluster where a species read exists.
+  // sugi spray / keyaki ovate / matsu fascicle / sakura petal (veined, tintable).
+  const _species = { leafSugi: 'spray', leafBroad: 'ovate', leafPine: 'fascicle', leafBlossom: 'petal' };
+  let _ss = 7710;
+  for (const [_k, _kind] of Object.entries(_species)) {
+    const _m = M[_k];
+    if (_m) {
+      _m.map = canvasTex(128, speciesLeafDraw(_kind, _ss++), 1, 1);
+      _m.alphaTest = 0.45;
+      _m.color.setHex(0xffffff);
+      _m.needsUpdate = true;
+    }
+  }
   M.shoot = M.shoot || new THREE.MeshStandardMaterial({ color: 0x9aa86a, roughness: 0.8 });
   M.litter = M.litter || new THREE.MeshStandardMaterial({ color: 0x4a3826, roughness: 1 });
   M.impostor = M.impostor || new THREE.MeshBasicMaterial({ color: 0x33482e, side: THREE.DoubleSide, fog: true });

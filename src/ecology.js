@@ -447,10 +447,10 @@ export function buildEcology(M) {
     plant(buildMatsu, -40, -22, { key: 'matsu-shrine' });
     plant(buildMatsu, 26, 14, { key: 'matsu-street' });
     // hinoki shrine pair (intentional symmetric planting — shrineOK exemption)
-    plant(buildHinoki, -52, -24, { key: 'hinoki-L', shrineOK: true });
+    plant(buildHinoki, -55, -20, { key: 'hinoki-L', shrineOK: true });
     plant(buildHinoki, -44, -32, { key: 'hinoki-R', shrineOK: true });
     // sugi timber behind houses
-    plant(buildSugi, -14, 30, { key: 'sugi-1' });
+    plant(buildSugi, -10, 24, { key: 'sugi-1' });
     plant(buildSugi, 16, 32, { key: 'sugi-2' });
     plant(buildSugi, -30, 12, { key: 'sugi-3' });
     plant(buildSugi, 30, -8, { key: 'sugi-4' });

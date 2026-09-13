@@ -378,6 +378,40 @@ export function swayVegetation(roots, t, wind) {
   }
 }
 
+// T2b bark relief (discourse+Wikipedia validated): sugi bark peels in VERTICAL
+// STRIPS; all trees spread surface roots. Fins + root cones merged = 1 mesh/tree.
+// Without this, bark scans slide on smooth tubes (the "fake" read up close).
+export function buildBarkRelief(mats, rng, h, r, strips = true, mat = null) {
+  const parts = [];
+  const d = new THREE.Object3D();
+  if (strips) { // sugi: peeling vertical strips, proud of the bole
+    const n = 9 + Math.floor(rng() * 4);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + rng() * 0.3;
+      const fg = new THREE.BoxGeometry(0.045 + rng() * 0.03, h * (0.35 + rng() * 0.25), 0.07);
+      d.position.set(Math.cos(a) * (r + 0.03), h * (0.2 + rng() * 0.2), Math.sin(a) * (r + 0.03));
+      d.rotation.set((rng() - 0.5) * 0.1, -a, (rng() - 0.5) * 0.12);
+      d.updateMatrix();
+      fg.applyMatrix4(d.matrix);
+      parts.push(fg);
+    }
+  }
+  { // surface roots: flattened cones radiating at the base (all species)
+    const n = 5 + Math.floor(rng() * 3);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + rng() * 0.5;
+      const rg = new THREE.ConeGeometry(0.07 + rng() * 0.05, 0.6 + rng() * 0.5, 5);
+      d.position.set(Math.cos(a) * (r + 0.25), 0.08, Math.sin(a) * (r + 0.25));
+      d.rotation.set(Math.PI / 2 - 0.25, 0, -a + Math.PI / 2);
+      d.updateMatrix();
+      rg.applyMatrix4(d.matrix);
+      parts.push(rg);
+    }
+  }
+  const mesh = new THREE.Mesh(mergeGeos(parts), mat || mats.barkSugi);
+  mesh.castShadow = true;
+  return mesh;
+}
 // --- T1 village vegetation (branch forge3d-rebuild): scaffold trees, satoyama species ---
 // Uses module mergeGeos above (indexed cylinders/planes carry uv). TREE_V2 streams only.
 export const TAPER_TOKEN = 'TAPER:trunk-base-to-tip-0.62';
@@ -460,6 +494,7 @@ export function buildSugi(mats, rng) {
   const H = 9 + rng() * 4;
   const trunk = new THREE.Mesh(trunkGeo(H, 0.28 + rng() * 0.12, 1.5), mats.barkSugi);
   g.add(trunk);
+  g.add(buildBarkRelief(mats, rng, H, 0.3, true)); // peeling strips + surface roots
   // WHORL_ANGLE: 65-80deg upturned, short branches — geometry implied by tip placement
   const ang = WHORL_ANGLE_MIN + rng() * (WHORL_ANGLE_MAX - WHORL_ANGLE_MIN);
   const tips = whorlTips(new THREE.Vector3(0, H * 0.5, 0), 4, 5, H * 0.5, ang - 45, rng);
@@ -509,6 +544,7 @@ export function buildKeyaki(mats, rng) {
     }
   }
   g.add(new THREE.Mesh(mergeGeos(limbMeshes), mats.barkKeyaki));
+  g.add(buildBarkRelief(mats, rng, 3.2, 0.24, false, mats.barkKeyaki)); // surface roots (smooth keyaki bark: no strips)
   tipCluster(g, rng, mats.leafBroad, tips, 1.5, 1.1, 0x476b35);
   g.userData = { species: 'keyaki' };
   return g;
@@ -534,6 +570,7 @@ export function buildMomiji(mats, rng, opts = {}) {
   }
   const struct = new THREE.Mesh(mergeGeos(parts), mats.barkMomiji);
   g.add(struct);
+  g.add(buildBarkRelief(mats, rng, 2.2, 0.15, false, mats.barkMomiji)); // surface roots only
   g.userData = { species: 'momiji', bare: struct }; // WINTER_BARE_STRUCTURE: fork stays when leaves off
   if (!opts.bare) tipCluster(g, rng, mats.leafMomiji, tips, 0.9, 0.7, opts.autumn ? 0xa83a22 : 0x5a7a3a);
   return g;
@@ -545,6 +582,7 @@ export function buildMatsu(mats, rng) {
   const tg = trunkGeo(H, 0.2, 1.4);
   tg.applyMatrix4(new THREE.Matrix4().makeRotationZ(0.12 + rng() * 0.12));
   g.add(new THREE.Mesh(tg, mats.barkSugi));
+  g.add(buildBarkRelief(mats, rng, H, 0.22, true)); // leaning matsu keeps strip bark + roots
   const pads = 3 + Math.floor(rng() * 3);
   const tips = [];
   for (let i = 0; i < pads; i++) {
