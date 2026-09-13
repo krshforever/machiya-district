@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { heightAt, slopeAt, moistureAt, biomeAt, streamFor } from './world.js';
 import { roadDist } from './roads.js';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   buildMapleVar, buildBambooCluster, buildShrub, buildGrassTufts, buildLitterMerged,
   buildSugi, buildHinoki, buildKeyaki, buildMomiji, buildMatsu, buildKaki, buildKuri,
@@ -86,14 +87,18 @@ function buildTrunkGeo() {
 }
 
 // Deterministic vertex jitter (pre-baked, stable across reloads).
+// T1-fix: weld first (mergeVertices) so computeVertexNormals yields SMOOTH
+// shading. Displacing split vertices then flat-shading is what read as
+// "triangles" on every far canopy.
 function jitterGeo(geo, salt, amt) {
-  const p = geo.attributes.position;
+  const g = mergeVertices(geo); // weld splits → smooth normals after jitter
+  const p = g.attributes.position;
   for (let i = 0; i < p.count; i++) {
     const f = 1 + (hash2i(i, salt, 9) - 0.5) * amt;
     p.setXYZ(i, p.getX(i) * f, p.getY(i) * (1 + (hash2i(i, salt + 1, 9) - 0.5) * amt * 0.6), p.getZ(i) * f);
   }
-  geo.computeVertexNormals();
-  return geo;
+  g.computeVertexNormals();
+  return g;
 }
 
 // Merge simple geometries (concatenate positions/normals; non-indexed) for momiji layers.
@@ -142,26 +147,29 @@ function sprayCanopy(kind, salt) {
     g.translate(0, 2.4, 0);
     return jitterGeo(g, salt, 0.35);
   }
-  // momiji: 3 spreading layers with 40% negative space
+  // momiji: 3 spreading layers with 40% negative space.
+  // T1-fix: FACE-level rejection (was vertex-level → regrouped triples formed
+  // random triangle soup, the "triangles" read). Keep whole icosahedron faces
+  // whose hash passes, drop the rest → real gaps between real triangles.
   const layers = [];
   const defs = [[0, 1.6, 0, 1.35], [0.7, 2.2, 0.3, 1.0], [-0.6, 2.7, -0.2, 0.75]];
   for (let li = 0; li < defs.length; li++) {
     const [ox, oy, oz, r] = defs[li];
-    const lump = new THREE.IcosahedronGeometry(r, 0);
+    const lump = new THREE.IcosahedronGeometry(r, 1); // detail 1: 80 faces
     lump.scale(1.25, 0.55, 1.25);
     lump.translate(ox, oy, oz);
     const p = lump.attributes.position;
     const keep = [];
-    for (let i = 0; i < p.count; i++) {
-      // Poisson-disc gap rejection: keep vertex only if its hash cell is free
-      const h = hash2i(i * 7 + li * 131, salt, 12);
-      if (h < 0.4) continue; // ~40% negative space
-      keep.push(p.getX(i), p.getY(i), p.getZ(i));
+    for (let f = 0; f < p.count; f += 3) {
+      const h = hash2i(f + li * 131, salt, 12);
+      if (h < 0.4) continue; // drop whole face → gap
+      for (let k = 0; k < 3; k++) keep.push(p.getX(f + k), p.getY(f + k), p.getZ(f + k));
     }
     const slim = new THREE.BufferGeometry();
     slim.setAttribute('position', new THREE.BufferAttribute(new Float32Array(keep), 3));
-    slim.computeVertexNormals();
-    layers.push(slim);
+    const welded = mergeVertices(slim); // smooth shading across kept faces; gaps stay open
+    welded.computeVertexNormals();
+    layers.push(welded);
     lump.dispose();
   }
   return mergeGeos(layers);
@@ -228,7 +236,7 @@ export function buildEcology(M) {
     const buckets = { sugi: [], hinoki: [], momiji: [], bamboo: [], pine: [] };
     // Slice 3: caps trimmed to fund the far ridge ring (-55 instances ~= -5.5k
     // tris for the ring's +768 → net-negative, ≥10k headroom under 500k).
-    const CAP = { sugi: 90, hinoki: 65, momiji: 60, bamboo: 35, pine: 35 };
+    const CAP = { sugi: 90, hinoki: 65, momiji: 45, bamboo: 35, pine: 35 };
     for (let i = 0; i < 2500; i++) {
       const total = buckets.sugi.length + buckets.hinoki.length + buckets.momiji.length + buckets.bamboo.length + buckets.pine.length;
       if (total >= 340) break;

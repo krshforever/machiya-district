@@ -73,14 +73,14 @@ const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
   ok(/0\.3,\s*500/.test(c), 'camera far 500 (ring at 368 inside frustum)');
 }
 
-// 6. Funding: caps trimmed (285 total), static estimate <490k.
+// 6. Funding: caps trimmed (270 total), static estimate <490k.
 {
   const e = read('src/ecology.js');
   const cm = e.match(/const CAP\s*=\s*\{\s*sugi:\s*(\d+),\s*hinoki:\s*(\d+),\s*momiji:\s*(\d+),\s*bamboo:\s*(\d+),\s*pine:\s*(\d+)/);
   ok(!!cm, 'ecology CAP table present');
   if (cm) {
     const total = cm.slice(1).map(Number).reduce((a, b) => a + b, 0);
-    ok(total === 285, `far caps total ${total} (285 = 340 - 55 funding cuts)`);
+    ok(total === 270, `far caps total ${total} (270 = 340 - 70 funding cuts)`);
     // ~100 tris/instance (slice-1 estimate) → 28500 pools + 768 ring
     const est = total * 100 + 768;
     console.log(`INFO  far pools ≈ ${total * 100} + ring 768 = ${est} (slice-1 was 34100 → net ${est - 34100})`);

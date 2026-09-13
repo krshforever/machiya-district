@@ -81,10 +81,54 @@ export function buildTerrain() {
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geo.computeVertexNormals();
-  // Slice 2: scanned soil detail multiplies the vertex macro tint (structure +
-  // scans, not scans instead of structure). Maps attach ONLY onLoad success —
-  // a missing file leaves today's vertex ground untouched (never black).
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, metalness: 0 });
+  // Slice T1-fix: ground repetition killer. One soil tile ×90 = wallpaper.
+  // Bake a composite at boot: soil base + needle-litter rotated 37° at 0.45 +
+  // procedural grain speckle. Two uncorrelated sources + rotation = the eye
+  // can't lock a grid. Deterministic layout (fixed angle/scales). Only onLoad
+  // success swaps the map — failure keeps the plain soil scan (never black).
+  try {
+    const soilURL = 'vendor/ambientcg/Ground037/Ground037_1K-JPG_Color.jpg';
+    const litURL = 'vendor/commons/needle_litter/Forest_floor_with_loblolly_pine_needles.jpg';
+    const i1 = new Image(), i2 = new Image();
+    let done = 0;
+    const bake = () => {
+      if (++done < 2) return;
+      try {
+        const S = 1024;
+        const c = document.createElement('canvas'); c.width = c.height = S;
+        const g = c.getContext('2d');
+        g.drawImage(i1, 0, 0, S, S);
+        // litter layer, rotated + scaled differently so grids never align
+        g.save();
+        g.translate(S / 2, S / 2); g.rotate(37 * Math.PI / 180); g.globalAlpha = 0.45;
+        const L = S * 1.5;
+        g.drawImage(i2, -L / 2, -L / 2, L, L);
+        g.restore();
+        // grain speckle (deterministic LCG, kills banding between the two photos)
+        let _gs = 918273;
+        const _gr = () => (_gs = (_gs * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+        g.globalAlpha = 0.08;
+        for (let i = 0; i < 2600; i++) {
+          const v = _gr() < 0.5 ? 0 : 255;
+          g.fillStyle = `rgb(${v},${v},${v})`;
+          g.fillRect(_gr() * S, _gr() * S, 1 + _gr() * 2, 1 + _gr() * 2);
+        }
+        g.globalAlpha = 1;
+        const baked = new THREE.CanvasTexture(c);
+        baked.colorSpace = THREE.SRGBColorSpace;
+        baked.wrapS = baked.wrapT = THREE.RepeatWrapping;
+        baked.repeat.set(75, 75);
+        baked.anisotropy = 4;
+        baked.needsUpdate = true;
+        mat.map = baked;
+        mat.needsUpdate = true;
+      } catch (e) { /* soil scan stays */ }
+    };
+    const noop = () => { /* either photo missing: soil scan stays */ };
+    i1.onload = bake; i1.onerror = noop; i1.src = soilURL;
+    i2.onload = bake; i2.onerror = noop; i2.src = litURL;
+  } catch (e) { /* procedural vertex ground stays */ }
   try {
     const tLoader = new THREE.TextureLoader();
     const detailOn = (tex, srgb) => {
@@ -96,8 +140,8 @@ export function buildTerrain() {
       return tex;
     };
     const noop = () => { /* scan missing: vertex colors carry the ground alone */ };
-    tLoader.load('vendor/ambientcg/Ground037/Ground037_1K-JPG_Color.jpg',
-      (t) => { mat.map = detailOn(t, true); mat.needsUpdate = true; }, undefined, noop);
+    // NOTE: albedo comes from the T1 composite bake above (soil + rotated
+    // litter + grain) — the single-tile Color load is retired to avoid a race.
     tLoader.load('vendor/ambientcg/Ground037/Ground037_1K-JPG_NormalGL.jpg',
       (t) => { mat.normalMap = detailOn(t, false); mat.normalScale.setScalar(0.6); mat.needsUpdate = true; }, undefined, noop);
     tLoader.load('vendor/ambientcg/Ground037/Ground037_1K-JPG_Roughness.jpg',

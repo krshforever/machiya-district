@@ -99,9 +99,9 @@ ok(WORLD_SEED === 20260912, `WORLD_SEED === 20260912 (got ${WORLD_SEED})`);
 // 6. Static tris estimate (far pools only) — must leave headroom under 500k
 {
   // cone(7,3)≈42 + lathe(6×5)≈60 per conifer-ish tree; momiji lump ≈ 36+60; pine ≈ 48+60
-  const per = { sugi: 102, hinoki: 108, momiji: 96, bamboo: 80, pine: 108 };
+  const per = { sugi: 102, hinoki: 108, momiji: 204, bamboo: 80, pine: 108 };
   // Slice 3: caps trimmed to fund the ridge ring (285 total, was 340).
-  const cap = { sugi: 90, hinoki: 65, momiji: 60, bamboo: 35, pine: 35 };
+  const cap = { sugi: 90, hinoki: 65, momiji: 45, bamboo: 35, pine: 35 };
   const est = Object.keys(per).reduce((s, k) => s + per[k] * cap[k], 0);
   console.log(`INFO  far-pool tris estimate ≈ ${est} (caps ${JSON.stringify(cap)})`);
   ok(est < 40000, `far pools ≈ ${est} tris (<40k, replaces heavier blobs — net DOWN)`);

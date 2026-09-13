@@ -67,6 +67,33 @@ function woodDraw(dark) {
     : woodDrawTone(21, '#8a6844', '#6e5233', '#a37f52');
 }
 
+// T1-fix: leaf-cluster alpha card. Tip cards are quads — without breakup they
+// read as paper sheets ("triangles"). This draws ~50 small leaves with gaps on
+// transparency; shared by ALL leaf mats (species tint comes from instance color).
+// Deterministic (seeded), one 128px canvas, zero downloads.
+function leafClusterDraw(seed) {
+  return (g, s) => {
+    const rnd = mulberry(seed);
+    g.clearRect(0, 0, s, s);
+    // back layer (dark, depth) then front layer (lit)
+    for (let layer = 0; layer < 2; layer++) {
+      const n = layer ? 30 : 18;
+      for (let i = 0; i < n; i++) {
+        const x = s * 0.12 + rnd() * s * 0.76, y = s * 0.12 + rnd() * s * 0.76;
+        const w = 5 + rnd() * 9, h = 3.5 + rnd() * 6, a = rnd() * Math.PI;
+        const v = layer ? 150 + rnd() * 70 : 70 + rnd() * 50; // lit vs shaded green
+        g.fillStyle = `rgb(${(v * 0.62) | 0},${v | 0},${(v * 0.52) | 0})`;
+        g.globalAlpha = 0.95;
+        g.beginPath(); g.ellipse(x, y, w, h, a, 0, Math.PI * 2); g.fill();
+        // center vein notch (leaf read, not blob read)
+        g.globalAlpha = 0.5; g.fillStyle = layer ? '#2a4028' : '#1c2e1e';
+        g.beginPath(); g.ellipse(x, y, w * 0.5, h * 0.18, a, 0, Math.PI * 2); g.fill();
+      }
+    }
+    g.globalAlpha = 1;
+  };
+}
+
 function plasterDraw(g, s) {
   const rnd = mulberry(99);
   g.fillStyle = '#efe7d6'; g.fillRect(0, 0, s, s);
@@ -355,6 +382,22 @@ M.soil.needsUpdate = true;
   M.leafSasa = M.leafSasa || leaf(0x3f6b34);
   M.leafFern = M.leafFern || leaf(0x3a6b40);
   M.leafSeedling = M.leafSeedling || leaf(0x557a3a);
+  // T1-fix: every leaf mat gets the cluster alpha card (alphaTest cutout, NOT
+  // transparent blend — no sort issues, keeps depth). Colors go WHITE so the
+  // per-instance species tint (tipCluster) carries the hue, not double-darken.
+  const _cluster = canvasTex(128, leafClusterDraw(7701), 1, 1);
+  for (const _lk of ['leafSugi', 'leafBroad', 'leafMomiji', 'leafBlossom', 'leafPine', 'leafBamboo', 'leafSasa', 'leafFern', 'leafSeedling', 'bambooLeaf']) {
+    const _lm = M[_lk];
+    if (_lm) {
+      _lm.map = _cluster;
+      _lm.alphaTest = 0.45;
+      _lm.color.setHex(0xffffff);
+      _lm.needsUpdate = true;
+    }
+  }
+  // mapleLeaf EXCLUDED on purpose: momiji leaves are lobed ShapeGeometry (real
+  // leaf silhouettes already) + instance-tinted autumn reds that a green map
+  // would muddy. Quads get the cluster card; shaped leaves don't need it.
   M.shoot = M.shoot || new THREE.MeshStandardMaterial({ color: 0x9aa86a, roughness: 0.8 });
   M.litter = M.litter || new THREE.MeshStandardMaterial({ color: 0x4a3826, roughness: 1 });
   M.impostor = M.impostor || new THREE.MeshBasicMaterial({ color: 0x33482e, side: THREE.DoubleSide, fog: true });

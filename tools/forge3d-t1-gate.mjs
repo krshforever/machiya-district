@@ -83,7 +83,29 @@ const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
   ok(e.includes('castShadow = true'), 'near heroes earn shadows');
 }
 
+// 8. T1-fix (triangles + wallpaper): cluster alpha, composite ground, smooth canopy.
+{
+  const m = read('src/materials.js');
+  ok(m.includes('leafClusterDraw') && m.includes('alphaTest'), 'leaf-cluster alpha card on leaf mats');
+  const t = read('src/terrain.js');
+  ok(t.includes('composite') && t.includes('37 * Math.PI'), 'ground composite bake (rotated litter + grain)');
+  const e = read('src/ecology.js');
+  ok(e.includes('mergeVertices'), 'canopy weld for smooth shading');
+  ok(e.includes('drop whole face'), 'momiji face-level gap rejection (no triangle soup)');
+  ok(e.includes('IcosahedronGeometry(r, 1)'), 'momiji detail-1 lumps');
+}
+
 // 7. Registry + credits cover new scans.
+{
+  const m = read('src/materials.js');
+  ok(m.includes('leafClusterDraw') && m.includes('alphaTest'), 'leaf-cluster alpha card on leaf mats');
+  const t = read('src/terrain.js');
+  ok(t.includes('composite') && t.includes('37 * Math.PI'), 'ground composite bake (rotated litter + grain)');
+  const e = read('src/ecology.js');
+  ok(e.includes('mergeVertices'), 'canopy weld for smooth shading');
+  ok(e.includes('drop whole face'), 'momiji face-level gap rejection (no triangle soup)');
+  ok(e.includes('IcosahedronGeometry(r, 1)'), 'momiji detail-1 lumps');
+}
 {
   const reg = read('ASSET_REGISTRY.md');
   ok(reg.includes('Slice V1') && reg.includes('zelkova') && reg.includes('bark_pbr'), 'registry covers village scans');
