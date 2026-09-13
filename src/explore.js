@@ -29,6 +29,13 @@ export function createExplore(camera, dom, opts = {}) {
   }
   function collide(p) {
     for (const r of solids) {
+      // REMASTERED-entry: blockWhen gates doorway leaves (open door → pass).
+      // Missing/false-returning guard = solid (fail closed, never fall through).
+      if (typeof r.blockWhen === 'function') {
+        let open = false;
+        try { open = !!r.blockWhen(); } catch (e) { open = false; }
+        if (open) continue;
+      }
       const x0 = r.x0 - 0.35, x1 = r.x1 + 0.35, z0 = r.z0 - 0.35, z1 = r.z1 + 0.35;
       if (p.x > x0 && p.x < x1 && p.z > z0 && p.z < z1) {
         const dxl = p.x - x0, dxr = x1 - p.x, dzl = p.z - z0, dzr = z1 - p.z;
@@ -124,8 +131,10 @@ export function createExplore(camera, dom, opts = {}) {
     if (mv.lengthSq() > 0) {
       mv.normalize().multiplyScalar(WALK * step);
       pos.x += mv.x; pos.z += mv.z;
-      collide(pos);
     }
+    // REMASTERED-entry: always resolve (not just while moving) — ejects
+    // stuck spawns and makes doorway gates hold even standing still.
+    collide(pos);
     // smooth height follow (stairs/terrain without popping)
     const gy = groundY(pos.x, pos.z);
     pos.y += (gy - pos.y) * Math.min(1, step * 10 + (step === 0 ? 1 : 0));

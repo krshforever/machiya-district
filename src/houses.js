@@ -197,9 +197,14 @@ export function generateHouse(p = {}) {
     const isDoorCol = (p.doorSide ?? 0) !== 0 && ((p.doorSide < 0 && c === 0) || (p.doorSide > 0 && c === cols - 1));
     const sill = y0 + 0.55, head = y0 + wallH - 0.75, ww = colW - 0.44, wh = head - sill;
     if (isDoorCol) {
-      // sliding door: frame + 2 panels + pulls
-      const frame = new THREE.Mesh(new THREE.BoxGeometry(ww + 0.12, 2.15, 0.1), Mwood());
-      frame.position.set(cx, y0 + 1.075, d / 2 + 0.02); winGroup.add(frame);
+      // REMASTERED-entry: border frame (posts + head + threshold), NOT a solid
+      // slab — the doorway OPENS into the interior depth core. Sliding leaves
+      // cover ww×2.0; merged into buckets (+0 draws).
+      _box(B, 'WOOD_D', 0.12, 2.15, 0.14, cx - ww / 2 - 0.01, y0 + 1.075, d / 2 + 0.02);
+      _box(B, 'WOOD_D', 0.12, 2.15, 0.14, cx + ww / 2 + 0.01, y0 + 1.075, d / 2 + 0.02);
+      _box(B, 'WOOD_D', ww + 0.26, 0.14, 0.14, cx, y0 + 2.15, d / 2 + 0.02);
+      _box(B, 'WOOD_D', ww + 0.1, 0.07, 0.16, cx, y0 + 0.035, d / 2 + 0.02);
+      // sliding door: 2 panels + pulls (no backing slab anymore)
       const dp = new THREE.Mesh(new THREE.BoxGeometry(ww / 2 - 0.03, 2.0, 0.05),
         mat('woodAged', MwoodA)); dp.position.set(cx - ww / 4, y0 + 1.0, d / 2 + 0.06); winGroup.add(dp);
       const dp2 = dp.clone(); dp2.position.x = cx + ww / 4; winGroup.add(dp2);

@@ -304,29 +304,86 @@ const daytime = createDaytime({
 const { camera, controls } = buildCamera(renderer);
 const cine = createCinematics(camera, controls);
 // P2.14 explore mode: first-person wander with terrain feet + building collisions.
-// Colliders from town LAYOUT lots + settlement houses (w/d now carried).
+// REMASTERED-entry: door houses collide as WALL SEGMENTS (not footprints) —
+// front/back/side walls always solid, doorway leaf blocks only while the door
+// is closed (blockWhen reads live slide targets). Open door → walk inside;
+// interior floor (0.7) takes over from terrain via heightFn.
 const exploreSolids = [];
+const enterable = []; // full footprints where floor height applies
+const heroDoor = { items: [] };
+function segsFor(cx, cz, w, d, doorX, isOpen) {
+  const x0 = cx - w / 2, x1 = cx + w / 2, z0 = cz - d / 2, z1 = cz + d / 2, T = 0.15;
+  if (doorX === null) return [{ x0, x1, z0, z1 }]; // solid footprint (no entry)
+  const gx0 = doorX - 0.55, gx1 = doorX + 0.55;
+  return [
+    { x0, x1: gx0, z0: z1 - T, z1: z1 + T },
+    { x0: gx1, x1, z0: z1 - T, z1: z1 + T },
+    { x0, x1, z0: z0 - T, z1: z0 + T },
+    { x0: x0 - T, x1: x0 + T, z0, z1 },
+    { x0: x1 - T, x1: x1 + T, z0, z1 },
+    { x0: gx0, x1: gx1, z0: z1 - 0.35, z1: z1 + 0.35, blockWhen: isOpen },
+  ];
+}
+function doorXOf(w, facadeCols, doorSide, px) {
+  if (!doorSide) return null;
+  const colW = w / (facadeCols ?? 3);
+  return px + (doorSide < 0 ? -w / 2 + colW * 0.5 : w / 2 - colW * 0.5);
+}
 try {
-  for (const lot of LAYOUT) {
-    exploreSolids.push({ x0: lot.cx - lot.w / 2, x1: lot.cx + lot.w / 2, z0: lot.cz - lot.d / 2, z1: lot.cz + lot.d / 2 });
+  for (const h of town.houses) {
+    if (h.name === 'hero') continue;
+    const p = h.params || {};
+    const w = p.w ?? 6, d = p.d ?? 6;
+    const dx = ((h.sliders || []).length && (p.doorSide ?? 0) !== 0)
+      ? doorXOf(w, p.facadeCols, p.doorSide, h.pos.x) : null;
+    const isOpen = () => (h._slideItems || []).some(s => s && s.target > 0.5);
+    for (const r of segsFor(h.pos.x, h.pos.z, w, d, dx, isOpen)) exploreSolids.push(r);
+    if (dx !== null) enterable.push({ x0: h.pos.x - w / 2, x1: h.pos.x + w / 2, z0: h.pos.z - d / 2, z1: h.pos.z + d / 2 });
+  }
+  const heroLot = LAYOUT.find(l => l.name === 'hero');
+  if (heroLot) {
+    const hdx = (arch && typeof arch.openBayX === 'number') ? arch.openBayX + heroLot.cx : null;
+    const hisOpen = () => heroDoor.items.some(s => s && s.target > 0.5);
+    for (const r of segsFor(heroLot.cx, heroLot.cz, heroLot.w, heroLot.d, hdx, hisOpen)) exploreSolids.push(r);
+    if (hdx !== null) enterable.push({ x0: heroLot.cx - heroLot.w / 2, x1: heroLot.cx + heroLot.w / 2, z0: heroLot.cz - heroLot.d / 2, z1: heroLot.cz + heroLot.d / 2 });
   }
   for (const h of settlement.houses) {
-    const hw = (h.w || 6) / 2, hd = (h.d || 6) / 2;
-    exploreSolids.push({ x0: h.pos.x - hw, x1: h.pos.x + hw, z0: h.pos.z - hd, z1: h.pos.z + hd });
+    const p = h.params || {};
+    const w = p.w ?? h.w ?? 6, d = p.d ?? h.d ?? 6;
+    const dx = ((h.sliders || []).length && (p.doorSide ?? 0) !== 0)
+      ? doorXOf(w, p.facadeCols, p.doorSide, h.pos.x) : null;
+    const isOpen = () => (h._slideItems || []).some(s => s && s.target > 0.5);
+    for (const r of segsFor(h.pos.x, h.pos.z, w, d, dx, isOpen)) exploreSolids.push(r);
+    if (dx !== null) enterable.push({ x0: h.pos.x - w / 2, x1: h.pos.x + w / 2, z0: h.pos.z - d / 2, z1: h.pos.z + d / 2 });
   }
 } catch (e) {}
 const explore = createExplore(camera, renderer.domElement, {
-  heightFn: (x, z) => heightAt(x, z),
+  heightFn: (x, z) => {
+    let b = 0;
+    try { b = heightAt(x, z); } catch (e) { b = 0; }
+    if (!Number.isFinite(b)) b = 0;
+    for (const r of enterable) {
+      if (x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1) return Math.max(b, 0.7);
+    }
+    return b;
+  },
   solids: exploreSolids,
 });
 window.__explore = { get on() { try { return explore.enabled; } catch (e) { return false; } } };
 window.addEventListener('tsuki-explore', (e) => {
   try {
-    const on = !!(e && e.detail);
+    // detail is boolean (UI toggle) or {on, spawn} (deep link / probes)
+    let on = false, spawn = null;
+    try {
+      const d = e && e.detail;
+      if (d && typeof d === 'object') { on = !!d.on; spawn = d.spawn || null; }
+      else on = !!d;
+    } catch (err) {}
     if (on) {
       try { cine.setMode('free'); } catch (err) {}
       controls.enabled = false;
-      explore.setEnabled(true, { x: 0, z: 10, yaw: Math.PI });
+      const sp = spawn || { x: 0, z: 10 };
+      explore.setEnabled(true, { x: sp.x ?? 0, z: sp.z ?? 10, yaw: Math.PI });
     } else {
       explore.setEnabled(false);
       controls.enabled = true;
@@ -338,15 +395,18 @@ window.addEventListener('tsuki-explore', (e) => {
 const interact = createInteract(camera, renderer.domElement);
 for (const s of (arch.sliders || [])) {
   const it = interact.addSlide(s.node, s.open);
-  if (it) it.t = 0;
+  if (it) { it.t = 0; heroDoor.items.push(it); }
 }
 // REMASTERED-D: every district door leaf slides (§16 — closed by default)
 // REMASTERED-G: hamlet/farmhouse doors join the circuit (barn has no door)
+// REMASTERED-entry: slide handles captured per house → doorway colliders
+// read live open state (open door = enterable in explore mode).
 for (const h of [...town.houses, ...(settlement.houses || [])]) {
+  h._slideItems = h._slideItems || [];
   for (const s of (h.sliders || [])) {
     try {
       const it = interact.addSlide(s.node, s.open);
-      if (it) it.t = 0;
+      if (it) { it.t = 0; h._slideItems.push(it); }
     } catch (e) {}
   }
 }
@@ -416,7 +476,24 @@ buildUI({ daytime, weather, cine, hudEl: document.getElementById('hud'), audio }
   if (w) weather.setState(w.toLowerCase());
   if (s !== null) { cine.setMode('cine'); cine.goTo(Number(s) || 0); }
   if (qp.get('explore') === '1') {
-    try { window.dispatchEvent(new CustomEvent('tsuki-explore', { detail: true })); } catch (e) {}
+    try {
+      const ex = new URLSearchParams(location.search).get('exspawn');
+      let sp = { x: 0, z: 10 };
+      if (ex) {
+        const [exx, ezz] = ex.split(',').map(Number);
+        if (Number.isFinite(exx) && Number.isFinite(ezz)) sp = { x: exx, z: ezz };
+      }
+      window.dispatchEvent(new CustomEvent('tsuki-explore', { detail: { on: true, spawn: sp } }));
+    } catch (e) {}
+  }
+  // headless entry proof: &doors=1 opens every slider leaf at load
+  if (qp.get('doors') === '1') {
+    try {
+      for (const s of heroDoor.items) s.target = 1;
+      for (const h of [...town.houses, ...(settlement.houses || [])]) {
+        for (const s of (h._slideItems || [])) s.target = 1;
+      }
+    } catch (e) {}
   }
 }
 
