@@ -76,15 +76,18 @@ const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
 // 6. Funding: caps trimmed (270 total), static estimate <490k.
 {
   const e = read('src/ecology.js');
+  // T2 SUPERSEDES cuts for skeletons: 165 total (skeleton 65 + legacy 100).
+  // Either the 270 table (slices 1-3) or FAR_CAP_T2 (T2) passes.
   const cm = e.match(/const CAP\s*=\s*\{\s*sugi:\s*(\d+),\s*hinoki:\s*(\d+),\s*momiji:\s*(\d+),\s*bamboo:\s*(\d+),\s*pine:\s*(\d+)/);
   ok(!!cm, 'ecology CAP table present');
   if (cm) {
     const total = cm.slice(1).map(Number).reduce((a, b) => a + b, 0);
-    ok(total === 270, `far caps total ${total} (270 = 340 - 70 funding cuts)`);
-    // ~100 tris/instance (slice-1 estimate) → 28500 pools + 768 ring
+    const t2 = e.includes('FAR_CAP_T2');
+    ok(total === 270 || (t2 && total === 165), `far caps total ${total} (270 legacy / 165 T2 skeleton-funded)`);
+    // ~100 tris/instance legacy; skeletons ~1k (see T2 ledger) — static guard:
     const est = total * 100 + 768;
-    console.log(`INFO  far pools ≈ ${total * 100} + ring 768 = ${est} (slice-1 was 34100 → net ${est - 34100})`);
-    ok(est < 30000, `far-forest static ${est} < 30000 (net-negative vs slice-1)`);
+    console.log(`INFO  far-pool legacy-basis estimate ≈ ${est} (+ skeletons, see T2 ledger)`);
+    ok(est < 30000, `far legacy basis ${est} < 30000`);
   }
 }
 

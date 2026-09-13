@@ -23,3 +23,4 @@ All files vendored under `assets/vendor/` (zero runtime CDN). Full URLs + licens
 - PBR textures: Ground037, Moss002, Rock035, Gravel043, Bark006, WoodSiding013, Plaster001, RoofingTiles006 — AmbientCG (Lennart Demes) — CC0.
 - Bark PBR + zelkova bark: Rob Tuytel / Charlotte Baglioni via Poly Haven — CC0 (via Wikimedia Commons mirrors).
 - Thatch (Hamptonne) — CC BY-SA 4.0; Marugame stone wall — CC BY-SA 4.0; wood planks photo — CC BY-SA 3.0 (all via Wikimedia Commons).
+- Tree skeleton technique: three.js TreeGenerator — MIT (three.js authors), vendored + extended.

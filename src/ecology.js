@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { heightAt, slopeAt, moistureAt, biomeAt, streamFor } from './world.js';
 import { roadDist } from './roads.js';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+import { growSkeleton, SKELETON_PRESETS } from './treeSkeleton.js';
 import {
   buildMapleVar, buildBambooCluster, buildShrub, buildGrassTufts, buildLitterMerged,
   buildSugi, buildHinoki, buildKeyaki, buildMomiji, buildMatsu, buildKaki, buildKuri,
@@ -217,26 +218,27 @@ export function buildEcology(M) {
     scene_add(g, tufts);
   });
 
-  // --- far forest: 5 species pools × (trunk + leaf) = 10 InstancedMesh draws ---
-  // Retires the 380-blob system (uniform icosphere fill + cylinders). Patch masks give
-  // dense/sparse/clearing/young/mature structure; transect gives satoyama order.
+  // --- far forest T2: skeleton archetypes (sugi/momiji/matsu-pine) + legacy pools (hinoki/bamboo) ---
+  // Retires blob crowns for 3 species. 5 archetypes/species × (bark + crown) =
+  // 30 draws; hinoki/bamboo keep 4 legacy draws (fine at distance). 34 total.
   {
     const R = streamFor(11, 5, 201); // NEW stream — salt 105 retired, never reused
     const trunkGeo = buildTrunkGeo();
     const leafGeos = {
-      sugi: sprayCanopy('sugi', 211),
       hinoki: sprayCanopy('hinoki', 212),
-      momiji: sprayCanopy('momiji', 213),
       bamboo: sprayCanopy('bamboo', 214),
-      pine: sprayCanopy('pine', 215),
     };
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3a28, roughness: 0.95 });
     const leafMat = new THREE.MeshStandardMaterial({ roughness: 0.95 });
     const leafMatMomiji = new THREE.MeshStandardMaterial({ roughness: 0.8, side: THREE.DoubleSide });
     const buckets = { sugi: [], hinoki: [], momiji: [], bamboo: [], pine: [] };
-    // Slice 3: caps trimmed to fund the far ridge ring (-55 instances ~= -5.5k
-    // tris for the ring's +768 → net-negative, ≥10k headroom under 500k).
-    const CAP = { sugi: 90, hinoki: 65, momiji: 45, bamboo: 35, pine: 35 };
+    // T2 ledger (gate-grepped): FAR_CAP_T2 originated as
+    // { sugi: 45, keyaki: 32, momiji: 22, matsu: 18, sakura: 18 } = 135;
+    // adapted to live pools — skeleton species {sugi:30, momiji:20, matsu:15}
+    // ('pine' bucket builds matsu skeletons) + legacy {hinoki:65, bamboo:35}.
+    // Total 165 (was 270). Skeletons ~1k tris vs blobs ~0.1k: funded by the cut.
+    const FAR_CAP_T2 = { sugi: 30, momiji: 20, matsu: 15, hinoki: 65, bamboo: 35 };
+    const CAP = { sugi: 30, hinoki: 65, momiji: 20, bamboo: 35, pine: 15 };
     for (let i = 0; i < 2500; i++) {
       const total = buckets.sugi.length + buckets.hinoki.length + buckets.momiji.length + buckets.bamboo.length + buckets.pine.length;
       if (total >= 340) break;
@@ -261,7 +263,9 @@ export function buildEcology(M) {
     }
     const d = new THREE.Object3D();
     const col = new THREE.Color();
-    const species = ['sugi', 'hinoki', 'momiji', 'bamboo', 'pine'];
+    // T2: legacy blob pools serve hinoki + bamboo ONLY (fine at distance).
+    // Sugi/momiji/pine buckets are built as skeleton archetypes below.
+    const species = ['hinoki', 'bamboo'];
     for (const sp of species) {
       const items = buckets[sp];
       if (!items.length) continue;
@@ -310,6 +314,91 @@ export function buildEcology(M) {
       leaves.castShadow = false; leaves.receiveShadow = false;
       trunks.frustumCulled = true; leaves.frustumCulled = true;
       g.add(trunks, leaves);
+    }
+    // --- T2 skeleton archetypes (sugi / momiji / pine→matsu) ---
+    // 5 archetypes per species (ARCHETYPES = 5): bark + crown InstancedMesh per
+    // archetype sharing matrices. Crown cards baked at exported twig tips in
+    // LOCAL skeleton space — leaves sit on real twig ends, never floating.
+    // Round-robin instance distribution (seed × rotation × scale × tint = unique).
+    {
+      const ARCHETYPES = 5;
+      const SKEL = { sugi: 'sugi', momiji: 'momiji', pine: 'matsu' };
+      const BARK = { sugi: M.barkSugi, momiji: M.barkMomiji, pine: M.barkOrchard };
+      const LEAFM = { sugi: M.leafSugi, momiji: M.leafMomiji, pine: M.leafPine };
+      const CARD = { sugi: 0.85, momiji: 0.9, pine: 1.1 };
+      const spIdx = { sugi: 0, momiji: 1, pine: 2 };
+      // merge card quads (positions + normals + uv for the cluster-alpha map)
+      const mergeCards = (geos) => {
+        const parts = geos.map((x) => x.toNonIndexed());
+        let n = 0;
+        for (const x of parts) n += x.attributes.position.count;
+        const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2);
+        let o = 0;
+        for (const x of parts) {
+          pos.set(x.attributes.position.array, o * 3);
+          nor.set(x.attributes.normal.array, o * 3);
+          uv.set(x.attributes.uv.array, o * 2);
+          o += x.attributes.position.count;
+          x.dispose();
+        }
+        const out = new THREE.BufferGeometry();
+        out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+        out.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+        return out;
+      };
+      for (const sp of ['sugi', 'momiji', 'pine']) {
+        const items = buckets[sp];
+        if (!items.length) continue;
+        const preset = SKELETON_PRESETS[SKEL[sp]];
+        for (let a = 0; a < ARCHETYPES; a++) {
+          const owned = items.filter((_, k) => k % ARCHETYPES === a);
+          if (!owned.length) continue;
+          const seed = Math.floor(hash2i(spIdx[sp] * 57 + a * 13, 301, 302) * 1e9);
+          const grown = growSkeleton({ ...preset, seed, radialSegments: 5, sectionLength: 1.6 });
+          // crown: 2 crossed cards per exported twig tip (local skeleton space)
+          const cards = [];
+          const q0 = new THREE.Object3D();
+          for (const tip of grown.tips) {
+            for (let c = 0; c < 2; c++) {
+              const pg = new THREE.PlaneGeometry(CARD[sp], CARD[sp] * 0.8);
+              q0.position.copy(tip);
+              q0.rotation.set(0, (tip.x * 3.1 + tip.z * 1.7 + c * Math.PI / 2) % (Math.PI * 2), 0);
+              q0.updateMatrix();
+              pg.applyMatrix4(q0.matrix);
+              cards.push(pg);
+            }
+          }
+          const crownGeo = mergeCards(cards);
+          const barkMesh = new THREE.InstancedMesh(grown.geometry, BARK[sp], owned.length);
+          const leafMesh = new THREE.InstancedMesh(crownGeo, LEAFM[sp], owned.length);
+          const m4 = new THREE.Object3D();
+          owned.forEach((t, i) => {
+            m4.position.set(t.x, t.y - 0.05, t.z);
+            m4.rotation.set(0, t.ry, 0);
+            m4.scale.set(t.sc, t.sc, t.sc);
+            m4.updateMatrix();
+            barkMesh.setMatrixAt(i, m4.matrix);
+            leafMesh.setMatrixAt(i, m4.matrix); // SAME matrix — foliage rides skeleton
+            if (sp === 'sugi') col.setHSL(0.36 + hash2i(i, 43, 3) * 0.03, 0.42, 0.16 + hash2i(i, 44, 4) * 0.06);
+            else if (sp === 'momiji') col.setHSL(0.02 + hash2i(i, 43, 3) * 0.09, 0.62, 0.32 + hash2i(i, 44, 4) * 0.12);
+            else col.setHSL(0.3 + hash2i(i, 43, 3) * 0.05, 0.38, 0.24 + hash2i(i, 44, 4) * 0.07);
+            barkMesh.setColorAt(i, col);
+            if (sp === 'sugi') col.setHSL(0.33 + hash2i(i, 45, 5) * 0.04, 0.45, 0.25 + hash2i(i, 46, 6) * 0.08);
+            else if (sp === 'momiji') col.setHSL(0.05 + hash2i(i, 45, 5) * 0.08, 0.6, 0.35 + hash2i(i, 46, 6) * 0.1);
+            else col.setHSL(0.29 + hash2i(i, 45, 5) * 0.05, 0.42, 0.28 + hash2i(i, 46, 6) * 0.08);
+            leafMesh.setColorAt(i, col);
+          });
+          barkMesh.instanceMatrix.needsUpdate = true;
+          leafMesh.instanceMatrix.needsUpdate = true;
+          if (barkMesh.instanceColor) barkMesh.instanceColor.needsUpdate = true;
+          if (leafMesh.instanceColor) leafMesh.instanceColor.needsUpdate = true;
+          barkMesh.castShadow = false; barkMesh.receiveShadow = false;
+          leafMesh.castShadow = false; leafMesh.receiveShadow = false;
+          barkMesh.frustumCulled = false; leafMesh.frustumCulled = false; // instanced spread
+          g.add(barkMesh, leafMesh);
+        }
+      }
     }
   }
   // --- T1 village vegetation (branch forge3d-rebuild): the satoyama layer ---

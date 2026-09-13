@@ -64,11 +64,16 @@ ok(WORLD_SEED === 20260912, `WORLD_SEED === 20260912 (got ${WORLD_SEED})`);
   ok(src.includes('40'), 'momiji ~40% negative-space rejection present');
   // 10 pools = per-species loop constructing trunk + leaf InstancedMesh each
   // (text shows 2 `new` sites inside the loop; runtime yields 5 species x 2).
+  // T2 SUPERSEDES: skeleton archetypes (5/species x bark+leaf) + legacy
+  // hinoki/bamboo pools. Either structure passes; T2 gate asserts the new one.
   const hasSpeciesLoop = /for\s*\(\s*const\s+sp\s+of\s+species\)/.test(src)
     && src.includes("const species = ['sugi', 'hinoki', 'momiji', 'bamboo', 'pine']");
+  const hasT2Archetypes = src.includes('FAR_CAP_T2') && /ARCHETYPES\s*=\s*5/.test(src)
+    && /new THREE\.InstancedMesh\(grown\.geometry/.test(src)
+    && /new THREE\.InstancedMesh\(crownGeo/.test(src);
   const buildsTrunkAndLeaf = /const trunks = new THREE\.InstancedMesh/.test(src)
     && /const leaves = new THREE\.InstancedMesh/.test(src);
-  ok(hasSpeciesLoop && buildsTrunkAndLeaf, '10 InstancedMesh pools (5 species x trunk+leaf loop)');
+  ok((hasSpeciesLoop && buildsTrunkAndLeaf) || hasT2Archetypes, '10 InstancedMesh pools (legacy) OR T2 archetype pools (5/species x bark+crown)');
   ok(src.includes('castShadow = false'), 'far pools cast no shadows (thin-geometry shadow discipline)');
 }
 

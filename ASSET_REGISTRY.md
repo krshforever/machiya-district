@@ -78,3 +78,6 @@ Poly Haven mirrors found on Wikimedia Commons (same CC0 scans, working door). Al
 - public/vendor/commons/thatch/thatch_hamptonne_1k.jpg — https://commons.wikimedia.org/wiki/File:Thatch_1,_Hamptonne,_Jersey.jpg — CC BY-SA 4.0 — thatch roof
 - public/vendor/commons/castle_stone/marugame_wall_1k.jpg — https://commons.wikimedia.org/wiki/File:Stone_wall_of_Marugame_Castle_04.jpg — CC BY-SA 4.0 — cut-stone wall (kura foundation, town walls)
 - public/vendor/commons/planks/wood_planks_1k.jpg — https://commons.wikimedia.org/wiki/File:Wooden_Planks_Texture.jpg — CC BY-SA 3.0 — wood planks (engawa, doors, floors)
+
+## T2 skeleton technique (2026-09-13, branch forge3d-rebuild)
+Tree skeleton technique after three.js TreeGenerator (MIT, three.js authors, node_modules/three/examples/jsm/generators/TreeGenerator.js) — vendored as src/treeSkeleton.js with tip-export + aWind + cylindrical UV extensions (original pulls three/webgpu+three/tsl; vendored copy is WebGL-clean, core-three only).
