@@ -75,6 +75,9 @@ export function buildTestingZone(M, heightAt) {
   };
   // entry board (faces the river approach, ry = PI)
   g.add(stakeLabel(M, 'TREE TESTING ZONE', 55, heightAt(55, 47), 47, Math.PI));
+  // EZ-Tree heroes stand at the zone ends (built by ezHeroes.js) — label them here
+  g.add(stakeLabel(M, 'EZ SUGI A', 37, heightAt(37, 58.5), 58.5, Math.PI * 0.85));
+  g.add(stakeLabel(M, 'EZ SUGI B', 73, heightAt(73, 58.5), 58.5, Math.PI * 0.85));
   for (const [label, key, x, z, s] of PLOTS) {
     const y = heightAt(x, z);
     const rng = treeV2Stream(`testzone:${key}`);
