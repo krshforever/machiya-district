@@ -11,6 +11,8 @@ import { heightAt, slopeAt, moistureAt, biomeAt, streamFor } from './world.js';
 import { roadDist } from './roads.js';
 import {
   buildMapleVar, buildBambooCluster, buildShrub, buildGrassTufts, buildLitterMerged,
+  buildSugi, buildHinoki, buildKeyaki, buildMomiji, buildMatsu, buildKaki, buildKuri,
+  buildSakura, buildBambooClump, buildUnderstoryPatch, treeV2Stream,
 } from './vegetation.js';
 
 function hash2i(x, z, salt) {
@@ -301,6 +303,87 @@ export function buildEcology(M) {
       trunks.frustumCulled = true; leaves.frustumCulled = true;
       g.add(trunks, leaves);
     }
+  }
+  // --- T1 village vegetation (branch forge3d-rebuild): the satoyama layer ---
+  // Hand-anchored + jittered placements (salt 301/302, never reused streams):
+  // keyaki shade trees at lanes/meeting ground, sakura gathering specimen,
+  // niwaki matsu landmarks, hinoki shrine pair, sugi timber behind houses,
+  // kaki/kuri orchard plots, moso crop plots + madake fence lines, understory
+  // under existing groves. Every plant exists for a reason (crop/shade/shrine).
+  {
+    const VM = {
+      barkSugi: M.barkSugi, barkHinoki: M.barkHinoki, barkKeyaki: M.barkKeyaki,
+      barkMomiji: M.barkMomiji, barkOrchard: M.barkOrchard,
+      leafSugi: M.leafSugi, leafBroad: M.leafBroad, leafMomiji: M.leafMomiji,
+      leafBlossom: M.leafBlossom, leafPine: M.leafPine, leafBamboo: M.leafBamboo,
+      leafSasa: M.leafSasa, leafFern: M.leafFern, leafSeedling: M.leafSeedling,
+      culm: M.bamboo, shoot: M.shoot, litter: M.litter, moss: M.moss,
+      impostor: M.impostor,
+    };
+    const R = streamFor(9, 4, 301); // placement stream (new, never reused)
+    const clear = (x, z, shrineOK = false) => {
+      if (roadDist(x, z) < 3) return false;
+      if (Math.abs(z - (34 + 8 * Math.sin(x * 0.045))) < 5) return false;
+      if (slopeAt(x, z) > 0.6) return false;
+      if (!shrineOK && Math.hypot(x + 48, z + 28) < 9) return false;
+      return true;
+    };
+    const plant = (builder, x, z, o = {}) => {
+      if (!clear(x, z, o.shrineOK)) return;
+      const rng = treeV2Stream(`village:${o.key || builder.name}:${x.toFixed(1)},${z.toFixed(1)}`);
+      const t = builder(VM, rng, o.arg);
+      t.position.set(x, heightAt(x, z) + (o.sink || 0), z);
+      t.rotation.y = rng() * 6.28;
+      const s = (o.s || 1) * (0.92 + rng() * 0.2);
+      t.scale.setScalar(s);
+      // structural meshes cast (near heroes earn shadows); leaf cards don't
+      t.traverse((m) => { if (m.isMesh && !m.isInstancedMesh) m.castShadow = true; });
+      g.add(t);
+    };
+    // keyaki: lane bends + meeting ground (THE village tree)
+    plant(buildKeyaki, 18 + (R() - 0.5) * 3, 8 + (R() - 0.5) * 3, { key: 'keyaki-meet' });
+    plant(buildKeyaki, -20 + (R() - 0.5) * 3, -6 + (R() - 0.5) * 3, { key: 'keyaki-west' });
+    plant(buildKeyaki, 6 + (R() - 0.5) * 3, -20 + (R() - 0.5) * 3, { key: 'keyaki-south' });
+    // sakura gathering specimen near shrine approach (outside clearing)
+    plant(buildSakura, -38, -20, { key: 'sakura-gather' });
+    // niwaki matsu landmarks: shrine approach + street end
+    plant(buildMatsu, -40, -22, { key: 'matsu-shrine' });
+    plant(buildMatsu, 26, 14, { key: 'matsu-street' });
+    // hinoki shrine pair (intentional symmetric planting — shrineOK exemption)
+    plant(buildHinoki, -52, -24, { key: 'hinoki-L', shrineOK: true });
+    plant(buildHinoki, -44, -32, { key: 'hinoki-R', shrineOK: true });
+    // sugi timber behind houses
+    plant(buildSugi, -14, 30, { key: 'sugi-1' });
+    plant(buildSugi, 16, 32, { key: 'sugi-2' });
+    plant(buildSugi, -30, 12, { key: 'sugi-3' });
+    plant(buildSugi, 30, -8, { key: 'sugi-4' });
+    // kaki/kuri orchard plots (farmstead south, clear of river)
+    plant(buildKaki, -6, 44, { key: 'kaki-1', s: 0.95 });
+    plant(buildKaki, -2, 44.5, { key: 'kaki-2', s: 0.9 });
+    plant(buildKuri, 2, 48, { key: 'kuri-1', s: 0.95 });
+    plant(buildKuri, 6, 48.5, { key: 'kuri-2', s: 0.9 });
+    // moso crop plots behind houses + madake fence lines along lanes
+    plant(buildBambooClump, -26, 20, { key: 'moso-1', arg: 'moso' });
+    plant(buildBambooClump, 24, 24, { key: 'moso-2', arg: 'moso' });
+    for (let i = 0; i < 3; i++) {
+      plant(buildBambooClump, 10 + i * 4, -4 + (R() - 0.5), { key: `madake-e${i}`, arg: 'madake', s: 0.8 });
+      plant(buildBambooClump, -12 + i * 4, -12 + (R() - 0.5), { key: `madake-w${i}`, arg: 'madake', s: 0.8 });
+    }
+    // momiji accents at water/paths (existing far-pool momiji stay the coppice)
+    plant(buildMomiji, 12, 30, { key: 'momiji-river', arg: { autumn: true } });
+    plant(buildMomiji, -34, -14, { key: 'momiji-shrine', arg: { autumn: false } });
+    // understory under existing groves (same deterministic pockets, seeds 101/102)
+    const underSpots = [
+      ...findPockets(['maple'], 2, 14, 101, 70).map(([x, z]) => [x + 2, z + 1]),
+      ...findPockets(['bamboo'], 1, 16, 102, 80).map(([x, z]) => [x - 2, z - 1]),
+    ];
+    underSpots.forEach(([x, z], i) => {
+      if (!clear(x, z)) return;
+      const rng = treeV2Stream(`village:under:${i}`);
+      const u = buildUnderstoryPatch(VM, rng, 5);
+      u.position.set(x, heightAt(x, z) + 0.02, z);
+      g.add(u);
+    });
   }
   return { group: g, vegRoots, tickers };
 }

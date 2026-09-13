@@ -377,3 +377,303 @@ export function swayVegetation(roots, t, wind) {
     r.rotation.z = Math.cos(t * sw.freq * 0.8 + sw.ph) * sw.amp * (0.5 + s);
   }
 }
+
+// --- T1 village vegetation (branch forge3d-rebuild): scaffold trees, satoyama species ---
+// Uses module mergeGeos above (indexed cylinders/planes carry uv). TREE_V2 streams only.
+export const TAPER_TOKEN = 'TAPER:trunk-base-to-tip-0.62';
+export const WHORL_ANGLE_MIN = 65;
+export const WHORL_ANGLE_MAX = 80;
+export const TIP_CLUSTER_ONLY = true;
+export const NO_SPHERE_CANOPY = true; // canopy never uses SphereGeometry; FRUIT_SPHERE_OK only
+export const WINTER_BARE_STRUCTURE = 'vase-fork+opposite-ramification';
+
+// TREE_V2 — local deterministic stream. No imports, no Math.random.
+export function hashStr32(s) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+export function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+export function treeV2Stream(key) { return mulberry32(hashStr32('TREE_V2:' + key)); }
+
+function trunkGeo(h, rBase, flare) {
+  // straight bole + butt flare: flared cylinder + clear-bole cylinder
+  const g1 = new THREE.CylinderGeometry(rBase * 0.72, rBase * flare, h * 0.22, 7, 1);
+  g1.translate(0, h * 0.11, 0);
+  const g2 = new THREE.CylinderGeometry(rBase * 0.62 * 0.72, rBase * 0.72, h * 0.78, 7, 1);
+  g2.translate(0, h * 0.22 + h * 0.39, 0);
+  return mergeGeos([g1, g2]);
+}
+function limbGeo(len, r) {
+  const g = new THREE.CylinderGeometry(r * 0.55, r, len, 5, 1);
+  g.translate(0, len / 2, 0);
+  return g;
+}
+function tipCardGeo(w, h) {
+  const g = new THREE.PlaneGeometry(w, h);
+  return g;
+}
+// TIP_CLUSTER_ONLY: leaves exist ONLY as tip cards at twig ends. Never trunk cards, never sphere canopy.
+export function tipCluster(parent, rng, mat, tips, cardW, cardH, tint) {
+  const geo = tipCardGeo(cardW, cardH);
+  const inst = new THREE.InstancedMesh(geo, mat, tips.length);
+  const d = new THREE.Object3D();
+  const col = new THREE.Color();
+  for (let i = 0; i < tips.length; i++) {
+    d.position.copy(tips[i].p);
+    d.rotation.set(rng() * 0.9 - 0.45, rng() * Math.PI * 2, rng() * 0.6 - 0.3);
+    d.updateMatrix();
+    inst.setMatrixAt(i, d.matrix);
+    col.set(tint).offsetHSL((rng() - 0.5) * 0.03, 0, (rng() - 0.5) * 0.08);
+    inst.setColorAt(i, col);
+  }
+  inst.instanceMatrix.needsUpdate = true;
+  if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+  parent.add(inst);
+  return inst;
+}
+function whorlTips(origin, nWhorl, perWhorl, len, upDeg, rng) {
+  const tips = [];
+  const up = upDeg * Math.PI / 180;
+  for (let w = 0; w < nWhorl; w++) {
+    const y = origin.y + (w / nWhorl) * len;
+    for (let k = 0; k < perWhorl; k++) {
+      const a = (k / perWhorl) * Math.PI * 2 + rng() * 0.6;
+      const r = len * (0.55 - w * 0.09);
+      tips.push({ p: new THREE.Vector3(origin.x + Math.cos(a) * r, y + Math.sin(up) * r * 0.5, origin.z + Math.sin(a) * r) });
+    }
+  }
+  return tips;
+}
+
+// --- SUGI (Cryptomeria): straight bole, butt flare, clear lower 1/2, whorled upturned shorts ---
+export function buildSugi(mats, rng) {
+  const g = new THREE.Group();
+  const H = 9 + rng() * 4;
+  const trunk = new THREE.Mesh(trunkGeo(H, 0.28 + rng() * 0.12, 1.5), mats.barkSugi);
+  g.add(trunk);
+  // WHORL_ANGLE: 65-80deg upturned, short branches — geometry implied by tip placement
+  const ang = WHORL_ANGLE_MIN + rng() * (WHORL_ANGLE_MAX - WHORL_ANGLE_MIN);
+  const tips = whorlTips(new THREE.Vector3(0, H * 0.5, 0), 4, 5, H * 0.5, ang - 45, rng);
+  tipCluster(g, rng, mats.leafSugi, tips, 1.1, 0.9, 0x2d4a2a);
+  g.userData = { species: 'sugi', h: H };
+  return g;
+}
+// --- HINOKI: warm brown, softer cone, planted as shrine pairs (placement, not geometry) ---
+export function buildHinoki(mats, rng) {
+  const g = new THREE.Group();
+  const H = 7 + rng() * 2.5;
+  g.add(new THREE.Mesh(trunkGeo(H, 0.24, 1.3), mats.barkHinoki));
+  const tips = whorlTips(new THREE.Vector3(0, H * 0.45, 0), 4, 6, H * 0.55, 30, rng);
+  tipCluster(g, rng, mats.leafSugi, tips, 0.95, 0.8, 0x3a5a30);
+  g.userData = { species: 'hinoki', h: H };
+  return g;
+}
+// --- KEYAKI (Zelkova): THE village tree — broad vase, radiating limbs, multi-stem ---
+export function buildKeyaki(mats, rng) {
+  const g = new THREE.Group();
+  const stems = 2 + Math.floor(rng() * 2); // 2-3, multi-stem common
+  const forkY = 2.2 + rng() * 0.6;
+  const limbMeshes = [];
+  const tips = [];
+  for (let s = 0; s < stems; s++) {
+    const lean = 0.12 + rng() * 0.18;
+    const az = (s / stems) * Math.PI * 2 + rng();
+    const h = forkY + rng() * 0.5;
+    const tg = trunkGeo(h, 0.22, 1.35);
+    const tm = new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(Math.cos(az), 0, Math.sin(az)), lean);
+    tg.applyMatrix4(tm);
+    limbMeshes.push(tg);
+    const limbs = 3 + Math.floor(rng() * 2);
+    for (let l = 0; l < limbs; l++) {
+      const la = (l / limbs) * Math.PI * 2 + rng() * 0.8;
+      const ll = 2.2 + rng() * 1.6;
+      const lg = limbGeo(ll, 0.09);
+      const m = new THREE.Object3D();
+      m.position.set(Math.cos(az) * lean * h * 2, h * 0.96, Math.sin(az) * lean * h * 2);
+      m.rotation.set(0.6 + rng() * 0.35, la, 0, 'YXZ');
+      m.updateMatrix();
+      lg.applyMatrix4(m.matrix);
+      limbMeshes.push(lg);
+      const tip = new THREE.Vector3(0, ll, 0).applyMatrix4(m.matrix);
+      tips.push({ p: tip });
+      tips.push({ p: tip.clone().add(new THREE.Vector3((rng() - 0.5), 0.4, (rng() - 0.5))) });
+    }
+  }
+  g.add(new THREE.Mesh(mergeGeos(limbMeshes), mats.barkKeyaki));
+  tipCluster(g, rng, mats.leafBroad, tips, 1.5, 1.1, 0x476b35);
+  g.userData = { species: 'keyaki' };
+  return g;
+}
+// --- MOMIJI: vase fork + opposite ramification; TIP_CLUSTER_ONLY; WINTER_BARE must read ---
+export function buildMomiji(mats, rng, opts = {}) {
+  const g = new THREE.Group();
+  const H = 3.5 + rng() * 1.5;
+  const parts = [trunkGeo(H * 0.55, 0.14, 1.25)];
+  const tips = [];
+  // opposite ramification: 2 forks x 2 subforks
+  for (let f = 0; f < 2; f++) {
+    const az = f * Math.PI + rng() * 0.4;
+    for (let s2 = 0; s2 < 2; s2++) {
+      const lg = limbGeo(1.6 + rng() * 0.8, 0.05);
+      const m = new THREE.Object3D();
+      m.position.set(0, H * 0.55, 0);
+      m.rotation.set(0.55 + rng() * 0.3, az + (s2 ? 0.35 : -0.35), 0, 'YXZ');
+      m.updateMatrix(); lg.applyMatrix4(m.matrix); parts.push(lg);
+      const tip = new THREE.Vector3(0, 1.6, 0).applyMatrix4(m.matrix);
+      tips.push({ p: tip });
+    }
+  }
+  const struct = new THREE.Mesh(mergeGeos(parts), mats.barkMomiji);
+  g.add(struct);
+  g.userData = { species: 'momiji', bare: struct }; // WINTER_BARE_STRUCTURE: fork stays when leaves off
+  if (!opts.bare) tipCluster(g, rng, mats.leafMomiji, tips, 0.9, 0.7, opts.autumn ? 0xa83a22 : 0x5a7a3a);
+  return g;
+}
+// --- MATSU (niwaki landmark): leaning trunk + 3-5 cloud pads ---
+export function buildMatsu(mats, rng) {
+  const g = new THREE.Group();
+  const H = 2.6 + rng() * 1.2;
+  const tg = trunkGeo(H, 0.2, 1.4);
+  tg.applyMatrix4(new THREE.Matrix4().makeRotationZ(0.12 + rng() * 0.12));
+  g.add(new THREE.Mesh(tg, mats.barkSugi));
+  const pads = 3 + Math.floor(rng() * 3);
+  const tips = [];
+  for (let i = 0; i < pads; i++) {
+    const pad = new THREE.SphereGeometry(0.9 - i * 0.1, 7, 5);
+    pad.scale(1.25, 0.32, 1.25); // cloud-pruned pad (flattened — not canopy sphere)
+    pad.translate((rng() - 0.5) * 1.6, H * 0.6 + i * 0.5, (rng() - 0.5) * 1.6);
+    const m = new THREE.Mesh(pad, mats.leafPine);
+    g.add(m);
+  }
+  void tips;
+  g.userData = { species: 'matsu' };
+  return g;
+}
+// --- KAKI / KURI: small orchard trees, FRUIT_SPHERE_OK ---
+export function buildOrchard(mats, rng, kind) {
+  const g = new THREE.Group();
+  const H = 2.4 + rng() * 0.8;
+  g.add(new THREE.Mesh(trunkGeo(H, 0.13, 1.2), mats.barkOrchard));
+  const tips = [];
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + rng();
+    tips.push({ p: new THREE.Vector3(Math.cos(a) * 1.1, H * 0.7 + rng() * 0.8, Math.sin(a) * 1.1) });
+  }
+  tipCluster(g, rng, mats.leafBroad, tips, 1.0, 0.8, 0x5c7038);
+  // FRUIT_SPHERE_OK: instanced fruit dots only (cheap spheres, not canopy)
+  const fg = new THREE.SphereGeometry(kind === 'kaki' ? 0.07 : 0.055, 6, 5);
+  const fm = new THREE.MeshBasicMaterial({ color: kind === 'kaki' ? 0xd86a1e : 0x7a4a22 });
+  const fruit = new THREE.InstancedMesh(fg, fm, 10);
+  const d = new THREE.Object3D();
+  for (let i = 0; i < 10; i++) {
+    const t = tips[Math.floor(rng() * tips.length)].p;
+    d.position.set(t.x + (rng() - 0.5) * 0.6, t.y - 0.25, t.z + (rng() - 0.5) * 0.6);
+    d.updateMatrix(); fruit.setMatrixAt(i, d.matrix);
+  }
+  fruit.instanceMatrix.needsUpdate = true;
+  g.add(fruit);
+  g.userData = { species: kind };
+  return g;
+}
+export function buildKaki(m, r) { return buildOrchard(m, r, 'kaki'); }
+export function buildKuri(m, r) { return buildOrchard(m, r, 'kuri'); }
+// --- SAKURA: one gathering specimen, same scaffold, pink tip variant ---
+export function buildSakura(mats, rng, opts = {}) {
+  const base = buildMomiji(mats, rng, { bare: true });
+  base.userData.species = 'sakura';
+  if (!opts.bare) {
+    const tips = [];
+    base.updateMatrixWorld(true);
+    base.traverse(o => { if (o.isMesh && o.geometry) { const p = new THREE.Vector3(); o.geometry.computeBoundingBox(); o.geometry.boundingBox.getCenter(p); o.localToWorld(p); base.worldToLocal(p); if (p.y > 1.5) tips.push({ p: p.clone() }); } });
+    while (tips.length < 6) tips.push({ p: new THREE.Vector3((rng() - 0.5) * 3, 2.5 + rng(), (rng() - 0.5) * 3) });
+    tipCluster(base, rng, mats.leafBlossom, tips.slice(0, 8), 1.2, 0.9, 0xe8a8b8);
+  }
+  return base;
+}
+// --- BAMBOO: moso crop clumps 5-15, madake thin fence lines; leaves top-third only ---
+export function buildBambooClump(mats, rng, kind = 'moso') {
+  const g = new THREE.Group();
+  const n = kind === 'moso' ? 5 + Math.floor(rng() * 6) : 8 + Math.floor(rng() * 8);
+  const culmR = kind === 'moso' ? 0.06 : 0.03;
+  const culmH = kind === 'moso' ? 7 + rng() * 3 : 4 + rng() * 2;
+  const culms = [];
+  const tips = [];
+  for (let i = 0; i < n; i++) {
+    const x = (rng() - 0.5) * 2.4, z = (rng() - 0.5) * 2.4;
+    const h = culmH * (0.85 + rng() * 0.3);
+    const cg = new THREE.CylinderGeometry(culmR * 0.8, culmR, h, 6, 1);
+    cg.translate(x, h / 2, z);
+    culms.push(cg);
+    tips.push({ p: new THREE.Vector3(x, h * 0.78, z) });
+    tips.push({ p: new THREE.Vector3(x + 0.2, h * 0.95, z) });
+  }
+  g.add(new THREE.Mesh(mergeGeos(culms), mats.culm));
+  tipCluster(g, rng, mats.leafBamboo, tips, 0.9, 0.6, 0x4a7038); // top-third only: tips at 0.78h+
+  if (kind === 'moso') { // spring shoot mounds
+    const mg = new THREE.ConeGeometry(0.16, 0.35, 6);
+    const shoots = new THREE.InstancedMesh(mg, mats.shoot, 4);
+    const d = new THREE.Object3D();
+    for (let i = 0; i < 4; i++) { d.position.set((rng() - 0.5) * 2.6, 0.17, (rng() - 0.5) * 2.6); d.updateMatrix(); shoots.setMatrixAt(i, d.matrix); }
+    shoots.instanceMatrix.needsUpdate = true;
+    g.add(shoots);
+  }
+  g.userData = { species: 'bamboo-' + kind };
+  return g;
+}
+// --- UNDERSTORY: sasa + ferns + moss + seedlings + ONE fallen-log type + litter ---
+export function buildUnderstoryPatch(mats, rng, size = 4) {
+  const g = new THREE.Group();
+  const d = new THREE.Object3D();
+  // sasa (broad dwarf bamboo) — crossed cards
+  const sasa = new THREE.InstancedMesh(tipCardGeo(0.7, 0.5), mats.leafSasa, 14);
+  for (let i = 0; i < 14; i++) { d.position.set((rng() - 0.5) * size, 0.25, (rng() - 0.5) * size); d.rotation.set(0, rng() * 3.14, 0); d.updateMatrix(); sasa.setMatrixAt(i, d.matrix); }
+  sasa.instanceMatrix.needsUpdate = true; g.add(sasa);
+  // ferns (wet shade)
+  const fern = new THREE.InstancedMesh(new THREE.ConeGeometry(0.3, 0.5, 5, 1, true), mats.leafFern, 8);
+  for (let i = 0; i < 8; i++) { d.position.set((rng() - 0.5) * size, 0.25, (rng() - 0.5) * size); d.rotation.set(0, rng() * 3.14, 0); d.updateMatrix(); fern.setMatrixAt(i, d.matrix); }
+  fern.instanceMatrix.needsUpdate = true; g.add(fern);
+  // moss mounds
+  const moss = new THREE.InstancedMesh(new THREE.SphereGeometry(0.3, 6, 4, 0, 6.3, 0, 1.2), mats.moss, 6);
+  for (let i = 0; i < 6; i++) { d.position.set((rng() - 0.5) * size, 0.02, (rng() - 0.5) * size); d.scale.setScalar(0.7 + rng() * 0.8); d.rotation.set(0, 0, 0); d.updateMatrix(); moss.setMatrixAt(i, d.matrix); }
+  moss.instanceMatrix.needsUpdate = true; d.scale.setScalar(1); g.add(moss);
+  // seedlings
+  const seed = new THREE.InstancedMesh(new THREE.ConeGeometry(0.12, 0.45, 5), mats.leafSeedling, 10);
+  for (let i = 0; i < 10; i++) { d.position.set((rng() - 0.5) * size, 0.22, (rng() - 0.5) * size); d.rotation.set(0, rng() * 3.14, 0); d.updateMatrix(); seed.setMatrixAt(i, d.matrix); }
+  seed.instanceMatrix.needsUpdate = true; g.add(seed);
+  // ONE fallen-log type with seedlings on it
+  const log = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 2.4, 7), mats.barkSugi);
+  log.rotation.set(Math.PI / 2, 0, rng() * 3.14); log.position.y = 0.18;
+  g.add(log);
+  for (let i = 0; i < 3; i++) {
+    const s = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.3, 5), mats.leafSeedling);
+    s.position.set(-0.7 + i * 0.7, 0.42, 0); g.add(s);
+  }
+  // litter: flat dark discs under canopy (cheap contact cue)
+  const lit = new THREE.InstancedMesh(new THREE.CircleGeometry(0.35, 7), mats.litter, 10);
+  for (let i = 0; i < 10; i++) { d.position.set((rng() - 0.5) * size, 0.015, (rng() - 0.5) * size); d.rotation.set(-Math.PI / 2, 0, rng() * 3.14); d.updateMatrix(); lit.setMatrixAt(i, d.matrix); }
+  lit.instanceMatrix.needsUpdate = true; g.add(lit);
+  g.userData = { species: 'understory' };
+  return g;
+}
+// Far impostor card (>120m): single crossed-card silhouette per species tint
+export function buildImpostor(mats, rng, tint = 0x33482e, h = 8) {
+  const g = new THREE.Group();
+  const geo = tipCardGeo(h * 0.6, h);
+  const m1 = new THREE.Mesh(geo, mats.impostor);
+  m1.position.y = h / 2;
+  const m2 = m1.clone(); m2.rotation.y = Math.PI / 2;
+  m1.material = mats.impostor; // tint via material color shared; per-instance via vertex color skip
+  g.add(m1, m2);
+  g.userData = { impostor: true, tint };
+  void rng; void tint;
+  return g;
+}

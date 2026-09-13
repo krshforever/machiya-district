@@ -335,5 +335,30 @@ for (const _k of ['roofTile', 'roofTileAlt', 'ridge']) {
 }
 M.soil.map = canvasTex(128, soilDraw, 4, 4);
 M.soil.needsUpdate = true;
+// --- T1 village vegetation keys (branch forge3d-rebuild): bark mats carry
+// procedural colors until vendor.js slots wire CC0 scans onLoad (never black).
+// Leaf mats are solid DoubleSide quads (tip-cluster cards, not shells).
+{
+  const bark = (c, r = 0.9) => new THREE.MeshStandardMaterial({ color: c, roughness: r, envMapIntensity: 0.15 });
+  const leaf = (c, r = 0.8) => new THREE.MeshStandardMaterial({ color: c, roughness: r, side: THREE.DoubleSide, envMapIntensity: 0.1 });
+  M.barkSugi = M.barkSugi || bark(0x6a4a34);
+  M.barkHinoki = M.barkHinoki || bark(0x7a5a40);
+  M.barkKeyaki = M.barkKeyaki || bark(0x8a8a86, 0.85); // smooth grey village bark
+  M.barkMomiji = M.barkMomiji || bark(0x7a6a5c, 0.85);
+  M.barkOrchard = M.barkOrchard || bark(0x6a5a4a);
+  M.leafSugi = M.leafSugi || leaf(0x2d4a2a, 0.9);
+  M.leafBroad = M.leafBroad || leaf(0x476b35);
+  M.leafMomiji = M.leafMomiji || leaf(0x5a7a3a, 0.75);
+  M.leafBlossom = M.leafBlossom || leaf(0xe8a8b8, 0.7);
+  M.leafPine = M.leafPine || leaf(0x3d5a30, 0.85);
+  M.leafBamboo = M.leafBamboo || leaf(0x4a7038, 0.75);
+  M.leafSasa = M.leafSasa || leaf(0x3f6b34);
+  M.leafFern = M.leafFern || leaf(0x3a6b40);
+  M.leafSeedling = M.leafSeedling || leaf(0x557a3a);
+  M.shoot = M.shoot || new THREE.MeshStandardMaterial({ color: 0x9aa86a, roughness: 0.8 });
+  M.litter = M.litter || new THREE.MeshStandardMaterial({ color: 0x4a3826, roughness: 1 });
+  M.impostor = M.impostor || new THREE.MeshBasicMaterial({ color: 0x33482e, side: THREE.DoubleSide, fog: true });
+  // moss mounds + bamboo culms reuse existing M.moss / M.bamboo (no new keys).
+}
 return M;
 }

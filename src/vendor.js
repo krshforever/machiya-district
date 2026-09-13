@@ -141,6 +141,27 @@ export const SCANNED_SLOTS = [
     repeat: [4, 4],
     fallbackNote: 'flat ceramic + shared noise stay when file missing',
   },
+  // Slice V1 (branch forge3d-rebuild): village bark truth — CC0 PBR sets via
+  // Commons mirrors. bark_pbr (Tuytel) → conifer/orchard bark; zelkova
+  // (Baglioni) → keyaki village trunks. Same onLoad-only contract.
+  {
+    key: 'barkPBR',
+    albedo: 'vendor/commons/bark_pbr/bark_brown_diff.jpg',
+    normal: 'vendor/commons/bark_pbr/bark_brown_nor_1k.png',
+    rough: 'vendor/commons/bark_pbr/bark_brown_rough_1k.png',
+    hasRough: true, hasNormal: true,
+    materialKeys: ['barkSugi', 'barkHinoki', 'barkOrchard'],
+    repeat: [1, 3],
+    fallbackNote: 'procedural bark colors stay when files missing',
+  },
+  {
+    key: 'zelkovaBark',
+    albedo: 'vendor/commons/zelkova_bark/zelkova_bark.jpg',
+    hasRough: false, hasNormal: false,
+    materialKeys: ['barkKeyaki', 'barkMomiji'],
+    repeat: [1, 2],
+    fallbackNote: 'procedural smooth-grey bark stays when file missing',
+  },
   // Reserved: Poly Haven drops (unreachable slice 1 — paths reserved, no fetch attempted).
   // { key: 'polyhaven_bark', albedo: 'vendor/polyhaven/bark_albedo.jpg', ... }
 ];
