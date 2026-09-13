@@ -55,7 +55,9 @@ export function buildLighting(scene, renderer) {
   sun.position.set(14, 8.5, 12);
   sun.target.position.set(0, 1.2, 0);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  // PERF (lag triage): 1024 shadow map (was 2048 — saves 12MB + fill on phone).
+  // Frustum stays ±15m (already tight); heroes inside cast, far never does.
+  sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.camera.left = -15; sun.shadow.camera.right = 15;
   sun.shadow.camera.top = 15; sun.shadow.camera.bottom = -15;
   sun.shadow.camera.near = 10; sun.shadow.camera.far = 120; // daytime orbits sun at r=60

@@ -313,6 +313,7 @@ export function buildEcology(M) {
       trunks.castShadow = false; trunks.receiveShadow = false;
       leaves.castShadow = false; leaves.receiveShadow = false;
       trunks.frustumCulled = true; leaves.frustumCulled = true;
+      trunks.computeBoundingSphere(); leaves.computeBoundingSphere(); // else unit-geo bounds pop the forest
       g.add(trunks, leaves);
     }
     // --- T2 skeleton archetypes (sugi / momiji / pine→matsu) ---
@@ -395,7 +396,10 @@ export function buildEcology(M) {
           if (leafMesh.instanceColor) leafMesh.instanceColor.needsUpdate = true;
           barkMesh.castShadow = false; barkMesh.receiveShadow = false;
           leafMesh.castShadow = false; leafMesh.receiveShadow = false;
-          barkMesh.frustumCulled = false; leafMesh.frustumCulled = false; // instanced spread
+          // PERF: cullable spreads — bounds account instances (three r150+),
+          // so looking at the village skips off-screen forest quadrants.
+          barkMesh.frustumCulled = true; leafMesh.frustumCulled = true;
+          barkMesh.computeBoundingSphere(); leafMesh.computeBoundingSphere();
           g.add(barkMesh, leafMesh);
         }
       }
