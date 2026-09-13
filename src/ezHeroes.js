@@ -7,8 +7,9 @@
 import * as THREE from 'three';
 
 const HEROES = [
-  { name: 'sugiA', x: -7, z: 21, ry: 0.7, h: 11 },
-  { name: 'sugiB', x: 19, z: 29, ry: 2.4, h: 10 },
+  // testing-zone ends (visible from the entry board, beside T1 sugi row)
+  { name: 'sugiA', x: 37, z: 57, ry: 0.7, h: 11 },
+  { name: 'sugiB', x: 73, z: 57, ry: 2.4, h: 10 },
 ];
 
 function ezBarkMat() {
