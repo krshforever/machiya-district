@@ -24,6 +24,7 @@ import { buildUI } from './ui.js';
 import { buildSignage } from './signage.js';
 import { createClock } from './cineclock.js';
 import { createPost } from './post.js';
+import { applyScannedMaterials } from './vendor.js'; // Forge3D C0: CC0 scans over procedural maps (fallback-safe)
 import { registerObjects, chunkOf, stableId, registryStats, heightAt, windAt } from './world.js';
 import { createPower } from './power.js';
 import { buildFire } from './fire.js';
@@ -65,6 +66,7 @@ document.getElementById('app').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 const M = buildMaterials();
+applyScannedMaterials(M); // CC0 albedo over procedural maps; missing files keep fallback
 setSharedM(M); // district builders reuse the textured mothership registry
 
 const { sun, hemi, skyMat } = buildLighting(scene, renderer);
