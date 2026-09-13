@@ -38,8 +38,7 @@ const BUILDERS = {
   under: (VM, rng) => buildUnderstoryPatch(VM, rng, 5),
 };
 
-function stakeLabel(M, text, x, y, z, ry) {
-  const g = new THREE.Group();
+function stakeLabel(M, text, x, y, z, ry) {  const g = new THREE.Group();
   const postM = M.woodAged || M.woodDark || M.wood;
   const boardM = M.woodNew || M.wood;
   const post = new THREE.Mesh(new THREE.BoxGeometry(0.09, 1.1, 0.09), postM);
@@ -58,6 +57,28 @@ function stakeLabel(M, text, x, y, z, ry) {
   g.add(im);
   g.position.set(x, y, z);
   g.rotation.y = ry;
+  return g;
+}
+
+// Board nailed ON the trunk (unmissable): plank + stroke text facing the path.
+// Placed at trunk surface toward viewers (dz>0 side), no post.
+function treeBoard(M, text, x, y, z, w = 1.0, h = 1.6, off = 0.3) {
+  const g = new THREE.Group();
+  const boardM = M.woodNew || M.wood;
+  const plank = new THREE.Mesh(new THREE.BoxGeometry(w, 0.3, 0.045), boardM);
+  plank.position.set(0, h, off); // proud of the bark, trunk behind
+  plank.castShadow = true;
+  g.add(plank);
+  const size = text.length > 7 ? 0.12 : 0.15;
+  const ll = layoutLine(text, { size, tracking: 0.3 });
+  const glyphM = new THREE.MeshStandardMaterial({ color: 0x201812, roughness: 0.9 });
+  const im = buildStrokeText(
+    [{ text, size, tracking: 0.3, ox: -ll.width / 2, oy: h - 0.08, oz: off + 0.026 }],
+    glyphM,
+  );
+  g.add(im);
+  g.position.set(x, y, z);
+  g.rotation.y = Math.PI; // face the north path (viewers approach from the river)
   return g;
 }
 
@@ -89,6 +110,15 @@ export function buildTestingZone(M, heightAt) {
     g.add(t);
     // label stake 2.2m south-east of the specimen, facing the entry path
     g.add(stakeLabel(M, label, x + 2.2, heightAt(x + 2.2, z + 1.5), z + 1.5, Math.PI * 0.85));
+    // board nailed ON the specimen (unmissable) — ground patches keep stakes only
+    if (key === 'under') { /* shitakusa: stake suffices, no trunk to nail to */ }
+    else if (key === 'moso' || key === 'madake') g.add(treeBoard(M, label, x, y, z, 1.0, 1.7, 0.14));
+    else g.add(treeBoard(M, label, x, y, z));
   }
+  // EZ heroes carry their boards too (built by ezHeroes.js, labeled here)
+  g.add(treeBoard(M, 'EZ SUGI A', 37, heightAt(37, 57), 57, 1.25));
+  g.add(treeBoard(M, 'EZ SUGI B', 73, heightAt(73, 57), 57, 1.25));
+  g.add(treeBoard(M, 'EZ OAK A', 51, heightAt(51, 46), 46, 1.15));
+  g.add(treeBoard(M, 'EZ OAK B', 59, heightAt(59, 46), 46, 1.15));
   return g;
 }

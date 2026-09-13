@@ -7,13 +7,23 @@
 import * as THREE from 'three';
 
 const HEROES = [
-  // testing-zone ends (visible from the entry board, beside T1 sugi row)
-  { name: 'sugiA', x: 37, z: 57, ry: 0.7, h: 11 },
-  { name: 'sugiB', x: 73, z: 57, ry: 2.4, h: 10 },
+  // testing zone: sugi ends + oak pair flanking the entry
+  { name: 'sugiA', set: 'pine', x: 37, z: 57, ry: 0.7, h: 11 },
+  { name: 'sugiB', set: 'pine', x: 73, z: 57, ry: 2.4, h: 10 },
+  { name: 'oakA', set: 'oak', x: 51, z: 46, ry: 1.9, h: 8 },
+  { name: 'oakB', set: 'oak', x: 59, z: 46, ry: 4.2, h: 8.5 },
 ];
 
-function ezBarkMat() {
-  const m = new THREE.MeshStandardMaterial({ color: 0xb99a80, roughness: 0.95, envMapIntensity: 0.15 });
+const SET_TEX = {
+  pine: { color: 'pine_color_1k.jpg', normal: 'pine_normal_1k.jpg', rough: 'pine_roughness_1k.jpg', leaf: 'pine_color.png' },
+  oak: { color: 'oak_color_1k.jpg', normal: 'oak_normal_1k.jpg', rough: 'oak_roughness_1k.jpg', leaf: 'oak_color.png' },
+};
+
+const _mats = {};
+function setMats(set) {
+  if (_mats[set]) return _mats[set];
+  const T = SET_TEX[set];
+  const bark = new THREE.MeshStandardMaterial({ color: 0xb99a80, roughness: 0.95, envMapIntensity: 0.15 });
   const L = new THREE.TextureLoader();
   const noop = () => {};
   const prep = (t, srgb) => {
@@ -22,33 +32,29 @@ function ezBarkMat() {
     t.anisotropy = 4;
     return t;
   };
-  L.load('vendor/eztree/pine_color_1k.jpg', (t) => { m.map = prep(t, true); m.needsUpdate = true; }, undefined, noop);
-  L.load('vendor/eztree/pine_normal_1k.jpg', (t) => { m.normalMap = prep(t, false); m.needsUpdate = true; }, undefined, noop);
-  L.load('vendor/eztree/pine_roughness_1k.jpg', (t) => { m.roughnessMap = prep(t, false); m.roughness = 1.0; m.needsUpdate = true; }, undefined, noop);
-  return m;
-}
-
-function ezLeafMat() {
-  const m = new THREE.MeshStandardMaterial({
+  L.load(`vendor/eztree/${T.color}`, (t) => { bark.map = prep(t, true); bark.needsUpdate = true; }, undefined, noop);
+  L.load(`vendor/eztree/${T.normal}`, (t) => { bark.normalMap = prep(t, false); bark.needsUpdate = true; }, undefined, noop);
+  L.load(`vendor/eztree/${T.rough}`, (t) => { bark.roughnessMap = prep(t, false); bark.roughness = 1.0; bark.needsUpdate = true; }, undefined, noop);
+  const leaf = new THREE.MeshStandardMaterial({
     color: 0xffffff, roughness: 0.85, side: THREE.DoubleSide,
     alphaTest: 0.45, envMapIntensity: 0.1,
   });
-  new THREE.TextureLoader().load('vendor/eztree/pine_color.png',
+  L.load(`vendor/eztree/${T.leaf}`,
     (t) => {
       t.colorSpace = THREE.SRGBColorSpace;
-      m.map = t; m.needsUpdate = true;
+      leaf.map = t; leaf.needsUpdate = true;
     }, undefined, () => {});
-  return m;
+  _mats[set] = { bark, leaf };
+  return _mats[set];
 }
 
 export function buildEzHeroes(heightAt) {
   const g = new THREE.Group();
   g.name = 'ezHeroes';
   const loader = new THREE.BufferGeometryLoader();
-  const barkMat = ezBarkMat();
-  const leafMat = ezLeafMat();
   const noop = () => {};
   for (const h of HEROES) {
+    const { bark: barkMat, leaf: leafMat } = setMats(h.set);
     const y = heightAt(h.x, h.z);
     const holder = new THREE.Group();
     holder.position.set(h.x, y - 0.05, h.z);
