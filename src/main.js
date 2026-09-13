@@ -33,6 +33,7 @@ import { createFarRidgeRing } from './farRidgeRing.js'; // Slice 3: P0-2 silhoue
 import { buildRoads } from './roads.js';
 import { buildEcology } from './ecology.js';
 import { buildEzHeroes } from './ezHeroes.js'; // branch: EZ-Tree hero sugi side-by-side
+import { buildEzNear } from './ezNear.js'; // branch: EZ-NEAR migration (nearest sugi)
 import { buildTestingZone } from './testingZone.js'; // branch: labeled specimen rows
 import { buildSettlement } from './settlement.js';
 import { decorateHouse, decorateEntrance } from './household.js';
@@ -114,6 +115,8 @@ const eco = buildEcology(M);
 scene.add(eco.group);
 // branch: EZ-Tree hero sugi beside T1 skeleton sugi (same camera, eyes judge)
 scene.add(buildEzHeroes(heightAt));
+// branch: EZ-NEAR migration — nearest walk-past sugi as real Pine Small instances
+scene.add(buildEzNear());
 // branch: testing zone (labeled specimens, south riverbank far from village)
 scene.add(buildTestingZone(M, heightAt));
 for (const t of eco.tickers) tickers.push(t);

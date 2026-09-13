@@ -24,6 +24,14 @@ function hash2i(x, z, salt) {
   return (h >>> 0) / 4294967296;
 }
 
+// EZ-NEAR migration: nearest sugi placements claimed by EZ-Tree instancing
+// (src/ezNear.js, real Pine Small bakes). Filled during buildEcology;
+// consumed by buildEzNear() in main.js. Rest stay skeleton (far mass).
+export const EZ_NEAR_QUEUE = [];
+// Sugi biome is mountain/slope (r≈85+): claim the 6 NEAREST (ridge fringe,
+// visible from village + testing zone) — true walk-past ring has no sugi.
+const EZ_NEAR_R = 130, EZ_NEAR_CAP = 6;
+
 // find up to `count` points with biome in `wants`, r 30..130, spaced ≥ minGap,
 // clear of roads (>4m), river channel, steep rock, and the village
 // exported for the headless gate (placement logic without DOM builders)
@@ -348,6 +356,16 @@ export function buildEcology(M) {
         out.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
         return out;
       };
+      // Migration split: nearest sugi (walk-past trees) go EZ; far mass stays skeleton.
+      const sugiByR = [...buckets.sugi].sort((a, b) =>
+        (a.x * a.x + a.z * a.z) - (b.x * b.x + b.z * b.z));
+      const ezSet = new Set();
+      for (const t of sugiByR) {
+        if (ezSet.size >= EZ_NEAR_CAP) break;
+        if (t.x * t.x + t.z * t.z > EZ_NEAR_R * EZ_NEAR_R) break;
+        ezSet.add(t); EZ_NEAR_QUEUE.push(t);
+      }
+      if (buckets.sugi.length) buckets.sugi = buckets.sugi.filter((t) => !ezSet.has(t));
       for (const sp of ['sugi', 'momiji', 'pine']) {
         const items = buckets[sp];
         if (!items.length) continue;
