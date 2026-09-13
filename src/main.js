@@ -29,6 +29,7 @@ import { registerObjects, chunkOf, stableId, registryStats, heightAt, windAt } f
 import { createPower } from './power.js';
 import { buildFire } from './fire.js';
 import { buildTerrain, buildRiver } from './terrain.js';
+import { createFarRidgeRing } from './farRidgeRing.js'; // Slice 3: P0-2 silhouette ring (+1 draw, 768 tris)
 import { buildRoads } from './roads.js';
 import { buildEcology } from './ecology.js';
 import { buildSettlement } from './settlement.js';
@@ -101,6 +102,8 @@ scene.add(terrain.group);
 if (terrain.mesh && terrain.mesh.material && M.registerWet) M.registerWet(terrain.mesh.material);
 const river = buildRiver();
 scene.add(river.group);
+// Slice 3: far ridge silhouette (horizon layer; sky dome stays the backdrop)
+scene.add(createFarRidgeRing());
 // P2.4/P2.5: road network + ecological planting (both read the same terrain
 // truth; plantings avoid roads, water, rock and the village by construction)
 const roads = buildRoads(M);

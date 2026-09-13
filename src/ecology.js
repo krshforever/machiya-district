@@ -224,7 +224,9 @@ export function buildEcology(M) {
     const leafMat = new THREE.MeshStandardMaterial({ roughness: 0.95 });
     const leafMatMomiji = new THREE.MeshStandardMaterial({ roughness: 0.8, side: THREE.DoubleSide });
     const buckets = { sugi: [], hinoki: [], momiji: [], bamboo: [], pine: [] };
-    const CAP = { sugi: 110, hinoki: 80, momiji: 70, bamboo: 40, pine: 40 };
+    // Slice 3: caps trimmed to fund the far ridge ring (-55 instances ~= -5.5k
+    // tris for the ring's +768 → net-negative, ≥10k headroom under 500k).
+    const CAP = { sugi: 90, hinoki: 65, momiji: 60, bamboo: 35, pine: 35 };
     for (let i = 0; i < 2500; i++) {
       const total = buckets.sugi.length + buckets.hinoki.length + buckets.momiji.length + buckets.bamboo.length + buckets.pine.length;
       if (total >= 340) break;

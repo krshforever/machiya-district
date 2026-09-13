@@ -1,13 +1,14 @@
 // src/daytime.js — DAWN/DAY/GOLDEN/SUNSET/NIGHT + auto-cycle. Drives sun, sky
 // uniforms (if lighting exposes them), fog, hemi, exposure, lamps, stars, moon.
 import * as THREE from 'three';
+import { HAZE_HEX } from './haze.js'; // Slice 3: clear-air fog = ring tint, single source
 
 const ORDER = ['DAWN', 'DAY', 'GOLDEN', 'SUNSET', 'BLUE_HOUR', 'NIGHT', 'MOONLIT', 'RAIN_NIGHT', 'MIST_NIGHT'];
 // lit = practicals level (lamps/windows), lampK/starK = per-state multipliers.
 // hemiSky/hemiGround tint the hemisphere fill per state (v2.1 addition).
 const CFG = {
   DAWN:   { sunC: 0xffb27a, sunI: 1.6, el: 12, az: 95,  sky: [0x9db8d6, 0xf2c49b], fog: 0xcfd4d6, hemi: 0.5, hemiSky: 0xbcd3e8, hemiGround: 0x8a6f52, exp: 1.0, lit: 0, lampK: 1, starK: 0 },
-  DAY:    { sunC: 0xfff3e0, sunI: 2.6, el: 62, az: 150, sky: [0x6fa8dc, 0xcfe3ef], fog: 0xcfd8dc, hemi: 0.7, hemiSky: 0xbcd3e8, hemiGround: 0x8a6f52, exp: 1.0, lit: 0, lampK: 1, starK: 0 },
+  DAY:    { sunC: 0xfff3e0, sunI: 2.6, el: 62, az: 150, sky: [0x6fa8dc, 0xcfe3ef], fog: HAZE_HEX, hemi: 0.7, hemiSky: 0xbcd3e8, hemiGround: 0x8a6f52, exp: 1.0, lit: 0, lampK: 1, starK: 0 },
   GOLDEN: { sunC: 0xffc46b, sunI: 2.0, el: 18, az: 235, sky: [0x7f9cc4, 0xffd9a0], fog: 0xd8c9b4, hemi: 0.55, hemiSky: 0xe8c9a0, hemiGround: 0x5f564a, exp: 1.05, lit: 0, lampK: 1, starK: 0 },
   SUNSET: { sunC: 0xff7e4d, sunI: 1.4, el: 6,  az: 262, sky: [0x5a6fa8, 0xff9e64], fog: 0xc9a98f, hemi: 0.45, hemiSky: 0x8a7fc0, hemiGround: 0x4a4038, exp: 1.05, lit: 0.25, lampK: 1, starK: 0.05 },
   BLUE_HOUR: { sunC: 0x7a86ff, sunI: 0.35, el: -4, az: 290, sky: [0x16224d, 0xb96a4e], fog: 0x5a5f86, hemi: 0.35, hemiSky: 0x4a5fa0, hemiGround: 0x2e2a28, exp: 0.9, lit: 0.8, lampK: 1, starK: 0.3 },
@@ -52,8 +53,10 @@ export function createDaytime({ renderer, scene, sun, hemi, skyMat = null, house
       // REMASTERED-H: far forest lives 32-137m — clear air must REACH it
       // (far 140 white-out turned trees into fog-colored blobs). Mist still
       // closes in; rain/snow add moderate haze.
+      // Slice 3: clear far 260→500 — the ridge ring (260-368m) shows progressive
+      // haze instead of a white wall; rain/snow pull back harder.
       scene.fog.near = THREE.MathUtils.lerp(42, 10, mistK) - rainK * 8 - snowK * 6;
-      scene.fog.far = THREE.MathUtils.lerp(260, 60, mistK) - rainK * 60 - snowK * 50;
+      scene.fog.far = THREE.MathUtils.lerp(500, 90, mistK) - rainK * 180 - snowK * 150;
     }
     if (hemi) {
       hemi.intensity = THREE.MathUtils.lerp(A.hemi, B.hemi, kk);

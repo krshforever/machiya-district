@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { HDRI_PRESETS } from './vendor.js';
+import { HAZE_HEX } from './haze.js'; // Slice 3: base fog = single-source haze
 
 // Cinematic late-afternoon: warm raking sun, hemisphere fill,
 // gradient sky dome, warm distance fog, tiny procedural environment
@@ -40,7 +41,9 @@ export function buildLighting(scene, renderer) {
   scene.add(sky);
 
   // --- fog: warm haze ---
-  scene.fog = new THREE.Fog(0xf0c193, 26, 62);
+  // Slice 3: base matches the haze single source; daytime.js drives near/far
+  // per frame (clear far 500 to carry the ridge ring).
+  scene.fog = new THREE.Fog(HAZE_HEX, 42, 500);
 
   // --- sun: warm directional, shadow-mapped, tuned frustum ---
   const sun = new THREE.DirectionalLight(0xffd9a8, 3.0);

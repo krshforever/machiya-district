@@ -5,10 +5,11 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // polar clamp keeps the camera above ground.
 export function buildCamera(renderer) {
   // near 0.3 (was 0.1): 0.1/200 depth ratio shimmered on 5-25mm ground
-  // decals at street-level glancing angles. 0.3/160 keeps interiors (≥0.5m)
-  // and moon/stars (≤120) intact while ~4x-ing depth precision.
+  // decals at street-level glancing angles. Slice 3: far 160→500 — the ridge
+  // ring lives 260-368m; ratio 1667 stays under the old shimmer threshold
+  // (2000) and the ring has no coplanar neighbors to fight.
   const camera = new THREE.PerspectiveCamera(
-    45, window.innerWidth / window.innerHeight, 0.3, 160
+    45, window.innerWidth / window.innerHeight, 0.3, 500
   );
   camera.position.set(12.5, 7.0, 15.5);
 
