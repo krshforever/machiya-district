@@ -32,6 +32,7 @@ import { buildTerrain, buildRiver } from './terrain.js';
 import { createFarRidgeRing } from './farRidgeRing.js'; // Slice 3: P0-2 silhouette ring (+1 draw, 768 tris)
 import { buildRoads } from './roads.js';
 import { buildEcology } from './ecology.js';
+import { buildEzHeroes } from './ezHeroes.js'; // branch: EZ-Tree hero sugi side-by-side
 import { buildSettlement } from './settlement.js';
 import { decorateHouse, decorateEntrance } from './household.js';
 import { buildShrine, buildTorii } from './shrine.js';
@@ -110,6 +111,8 @@ const roads = buildRoads(M);
 scene.add(roads.group);
 const eco = buildEcology(M);
 scene.add(eco.group);
+// branch: EZ-Tree hero sugi beside T1 skeleton sugi (same camera, eyes judge)
+scene.add(buildEzHeroes(heightAt));
 for (const t of eco.tickers) tickers.push(t);
 for (const r of eco.vegRoots) vegRoots.push(r);
 // P2.6: riverside hamlet + terraced paddies (placement-gated, registered)

@@ -24,3 +24,4 @@ All files vendored under `assets/vendor/` (zero runtime CDN). Full URLs + licens
 - Bark PBR + zelkova bark: Rob Tuytel / Charlotte Baglioni via Poly Haven — CC0 (via Wikimedia Commons mirrors).
 - Thatch (Hamptonne) — CC BY-SA 4.0; Marugame stone wall — CC BY-SA 4.0; wood planks photo — CC BY-SA 3.0 (all via Wikimedia Commons).
 - Tree skeleton technique: three.js TreeGenerator — MIT (three.js authors), vendored + extended.
+- Hero tree bakes: EZ-Tree pine — MIT (dgreenheck) — geometry + pine bark/leaf textures vendored from package.

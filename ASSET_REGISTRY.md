@@ -81,3 +81,12 @@ Poly Haven mirrors found on Wikimedia Commons (same CC0 scans, working door). Al
 
 ## T2 skeleton technique (2026-09-13, branch forge3d-rebuild)
 Tree skeleton technique after three.js TreeGenerator (MIT, three.js authors, node_modules/three/examples/jsm/generators/TreeGenerator.js) — vendored as src/treeSkeleton.js with tip-export + aWind + cylindrical UV extensions (original pulls three/webgpu+three/tsl; vendored copy is WebGL-clean, core-three only).
+
+## EZ-Tree heroes (2026-09-13, branch forge3d-rebuild)
+Package @dgreenheck/ez-tree@1.1.0 (MIT, three>=0.167 peer, zero deps) — installed, baked offline, NOT imported at runtime. Baked via correct string API (t.loadPreset('Pine Small')) + seed; geometries vendored as static JSON, textures copied from package.
+- public/vendor/eztree/ezhero-sugiA-bark.json (18,756 tris variant A bark 11,112)
+- public/vendor/eztree/ezhero-sugiA-leaf.json (variant A leaves 7,644)
+- public/vendor/eztree/ezhero-sugiB-bark.json + ezhero-sugiB-leaf.json (variant B)
+- public/vendor/eztree/pine_color_1k.jpg + pine_normal_1k.jpg + pine_roughness_1k.jpg (bark PBR)
+- public/vendor/eztree/pine_color.png (leaf alpha)
+Side-by-side with T1 skeleton sugi at (-7,21) + (19,29); director's eyes pick survivor.

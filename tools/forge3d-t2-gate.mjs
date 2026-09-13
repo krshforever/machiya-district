@@ -56,6 +56,31 @@ try {
   if (a.distanceTo(b) > 1e-6) fail('nondeterministic first-tip coords');
   ok(`determinism (${r1.tips.length} tips, first [${a.x.toFixed(3)},${a.y.toFixed(3)},${a.z.toFixed(3)}])`);
 } catch (e) { fail('determinism run failed: ' + e.message); }
+// 10. EZ-Tree heroes (side-by-side trial): vendored geometry + textures on
+// disk, no runtime package import, no webgpu/tsl.
+{
+  for (const f of [
+    'public/vendor/eztree/ezhero-sugiA-bark.json',
+    'public/vendor/eztree/ezhero-sugiA-leaf.json',
+    'public/vendor/eztree/ezhero-sugiB-bark.json',
+    'public/vendor/eztree/ezhero-sugiB-leaf.json',
+    'public/vendor/eztree/pine_color_1k.jpg',
+    'public/vendor/eztree/pine_color.png',
+  ]) {
+    if (!existsSync(f)) fail(`EZ hero file on disk: ${f}`);
+    else ok(`EZ hero file on disk: ${f}`);
+  }
+  const h = src('src/ezHeroes.js');
+  if (!h.includes('BufferGeometryLoader') || !h.includes('visible = false')) fail('heroes hidden until both parts land');
+  else ok('heroes hidden until both parts land (never half-trees)');
+  const m = src('src/main.js');
+  if (!m.includes('buildEzHeroes')) fail('heroes wired in main');
+  else ok('heroes wired in main');
+  const all = h + src('src/ecology.js');
+  if (/from '@dgreenheck\//.test(all)) fail('runtime eztree import (must be baked JSON only)');
+  else ok('no runtime eztree import (baked JSON only)');
+}
+
 // 9. bans (comments stripped — headers document the discipline in words)
 for (const f of ['src/treeSkeleton.js', 'src/ecology.js']) {
   const t = src(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
