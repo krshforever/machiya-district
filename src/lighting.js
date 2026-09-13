@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+import { HDRI_PRESETS } from './vendor.js';
 
 // Cinematic late-afternoon: warm raking sun, hemisphere fill,
 // gradient sky dome, warm distance fog, tiny procedural environment
@@ -101,6 +103,20 @@ export function buildLighting(scene, renderer) {
   scene.environment = envRT.texture;
   envTex.dispose();
   pmrem.dispose();
+  // Slice 2: real-sky HDRI over the procedural env (same PMREM path, baked once).
+  // Async, cached, never throws: missing file keeps the procedural environment.
+  try {
+    new RGBELoader().load(HDRI_PRESETS.clear,
+      (hdr) => {
+        try {
+          hdr.mapping = THREE.EquirectangularReflectionMapping;
+          const pm2 = new THREE.PMREMGenerator(renderer);
+          const rt2 = pm2.fromEquirectangular(hdr);
+          scene.environment = rt2.texture;
+          hdr.dispose(); pm2.dispose();
+        } catch (e) { /* procedural env stays */ }
+      }, undefined, () => { /* procedural env stays */ });
+  } catch (e) { /* procedural env stays */ }
 
   return { sun, hemi, skyMat };
 }

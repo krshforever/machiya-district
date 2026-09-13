@@ -98,8 +98,11 @@ export function createDaytime({ renderer, scene, sun, hemi, skyMat = null, house
 export function buildNightSky(scene) {
   const g = new THREE.Group(); g.name = 'night_sky';
   const N = 400, pos = new Float32Array(N * 3);
+  // Slice 2: seeded LCG (was Math.random — stars reshuffled every reload).
+  let _ss = 20260912 ^ 0x9e3779b9;
+  const _sr = () => (_ss = (_ss * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
   for (let i = 0; i < N; i++) {
-    const a = Math.random() * Math.PI * 2, e = Math.random() * Math.PI * 0.45 + 0.08, r = 120;
+    const a = _sr() * Math.PI * 2, e = _sr() * Math.PI * 0.45 + 0.08, r = 120;
     pos[i * 3] = Math.cos(a) * Math.cos(e) * r; pos[i * 3 + 1] = Math.sin(e) * r; pos[i * 3 + 2] = Math.sin(a) * Math.cos(e) * r;
   }
   const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(pos, 3));

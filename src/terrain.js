@@ -8,8 +8,11 @@ import { heightAt, moistureAt, biomeAt, slopeAt } from './world.js';
 const SIZE = 300; // ±150m
 const STEP = 3;   // 3m grid -> 100x100 quads ≈ 20k tris, 1 draw
 
-function biomeColor(biome, mo, h, out) {
+function biomeColor(biome, mo, h, sl, out) {
   // earthy, muted; moisture darkens, height rocks
+  // Slice 2: layered physical bands (moss/mud/litter/rock) from existing fields.
+  // VILLAGE EXEMPT: district plateau color stays byte-identical (blend weights 0).
+  const isVillage = biome === 'village';
   switch (biome) {
     case 'village': out.setRGB(0.36, 0.32, 0.25); break;
     case 'riverbank': out.setRGB(0.52, 0.48, 0.38); break;
@@ -24,9 +27,22 @@ function biomeColor(biome, mo, h, out) {
   const dark = 1 - mo * 0.25; // moisture darkens (wet earth logic, no textures)
   out.multiplyScalar(dark);
   if (h > 7) out.lerp(_rock, Math.min((h - 7) / 8, 0.7));
+  if (!isVillage) {
+    // exposed rock on steep faces (structure, not noise)
+    if (sl > 0.5) out.lerp(_rock, Math.min((sl - 0.5) * 1.8, 0.6));
+    // moss colonizes damp gentle ground (north-facing bias approximated by moisture)
+    if (mo > 0.6 && sl < 0.3) out.lerp(_moss, Math.min((mo - 0.6) * 2.2, 0.5));
+    // mud where water sits on flat ground
+    if (mo > 0.75 && sl < 0.15) out.lerp(_mud, Math.min((mo - 0.75) * 2.4, 0.6));
+    // leaf litter under maple/bamboo canopies (same causality as REMASTERED-C)
+    if (biome === 'maple' || biome === 'bamboo') out.lerp(_litter, 0.45);
+  }
   return out;
 }
 const _rock = new THREE.Color(0.5, 0.5, 0.52);
+const _moss = new THREE.Color(0.32, 0.42, 0.22); // damp-ground moss band
+const _mud = new THREE.Color(0.23, 0.19, 0.15); // standing-water mud band
+const _litter = new THREE.Color(0.36, 0.28, 0.18); // canopy leaf-litter band
 const _scree = new THREE.Color(0.47, 0.43, 0.38); // eroded slope wash
 const _gully = new THREE.Color(0.30, 0.27, 0.22); // drainage-channel stain
 // deterministic per-vertex hash (position-based, no RNG stream)
@@ -51,20 +67,42 @@ export function buildTerrain() {
     const h = heightAt(x, z);
     pos.setY(i, h - 0.05); // 5cm below district planes: no coplanar fight, no visible gap
     const mo = moistureAt(x, z);
-    biomeColor(biomeAt(x, z), mo, h, c);
+    const sl0 = slopeAt(x, z);
+    biomeColor(biomeAt(x, z), mo, h, sl0, c);
     // REMASTERED-E: landscape breakup (all deterministic, zero textures/draws)
     // 1. tonal jitter kills flat procedural fills; 2. scree washes steep
     // slopes (erosion cue); 3. wet gullies stain high-moisture slopes.
     const j = _vh(x, z);
     c.offsetHSL((j - 0.5) * 0.02, (j - 0.5) * 0.05, (j - 0.5) * 0.09);
-    const sl = slopeAt(x, z);
+    const sl = sl0;
     if (sl > 0.35) c.lerp(_scree, Math.min((sl - 0.35) * 1.6, 0.55));
     if (sl > 0.2 && mo > 0.55) c.lerp(_gully, Math.min((mo - 0.55) * 1.8, 0.5) * Math.min((sl - 0.2) * 3, 1));
     colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geo.computeVertexNormals();
+  // Slice 2: scanned soil detail multiplies the vertex macro tint (structure +
+  // scans, not scans instead of structure). Maps attach ONLY onLoad success —
+  // a missing file leaves today's vertex ground untouched (never black).
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, metalness: 0 });
+  try {
+    const tLoader = new THREE.TextureLoader();
+    const detailOn = (tex, srgb) => {
+      tex.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(90, 90);
+      tex.anisotropy = 4;
+      tex.needsUpdate = true;
+      return tex;
+    };
+    const noop = () => { /* scan missing: vertex colors carry the ground alone */ };
+    tLoader.load('vendor/ambientcg/Ground037/Ground037_1K-JPG_Color.jpg',
+      (t) => { mat.map = detailOn(t, true); mat.needsUpdate = true; }, undefined, noop);
+    tLoader.load('vendor/ambientcg/Ground037/Ground037_1K-JPG_NormalGL.jpg',
+      (t) => { mat.normalMap = detailOn(t, false); mat.normalScale.setScalar(0.6); mat.needsUpdate = true; }, undefined, noop);
+    tLoader.load('vendor/ambientcg/Ground037/Ground037_1K-JPG_Roughness.jpg',
+      (t) => { mat.roughnessMap = detailOn(t, false); mat.needsUpdate = true; }, undefined, noop);
+  } catch (e) { /* procedural vertex ground stays */ }
   const mesh = new THREE.Mesh(geo, mat);
   mesh.receiveShadow = true; // never casts (perf)
   mesh.frustumCulled = true;

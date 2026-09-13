@@ -59,6 +59,88 @@ export const SCANNED_SLOTS = [
     repeat: [4, 4],
     fallbackNote: 'procedural soilDraw canvas stays when file missing',
   },
+  // Slice 2: AmbientCG CC0 PBR (1K-JPG, Color+NormalGL+Roughness only).
+  // materialKeys use REAL keys from buildMaterials() (materials.js).
+  {
+    key: 'ground037-soil',
+    albedo: 'vendor/ambientcg/Ground037/Ground037_1K-JPG_Color.jpg',
+    normal: 'vendor/ambientcg/Ground037/Ground037_1K-JPG_NormalGL.jpg',
+    rough: 'vendor/ambientcg/Ground037/Ground037_1K-JPG_Roughness.jpg',
+    hasRough: true, hasNormal: true,
+    materialKeys: ['soil'],
+    repeat: [110, 110],
+    fallbackNote: 'procedural soilDraw canvas stays when file missing',
+  },
+  {
+    key: 'moss002',
+    albedo: 'vendor/ambientcg/Moss002/Moss002_1K-JPG_Color.jpg',
+    normal: 'vendor/ambientcg/Moss002/Moss002_1K-JPG_NormalGL.jpg',
+    rough: 'vendor/ambientcg/Moss002/Moss002_1K-JPG_Roughness.jpg',
+    hasRough: true, hasNormal: true,
+    materialKeys: ['moss', 'mossDark'],
+    repeat: [60, 60],
+    fallbackNote: 'flat moss colors stay when file missing',
+  },
+  {
+    key: 'rock035',
+    albedo: 'vendor/ambientcg/Rock035/Rock035_1K-JPG_Color.jpg',
+    normal: 'vendor/ambientcg/Rock035/Rock035_1K-JPG_NormalGL.jpg',
+    rough: 'vendor/ambientcg/Rock035/Rock035_1K-JPG_Roughness.jpg',
+    hasRough: true, hasNormal: true,
+    materialKeys: ['stone'],
+    repeat: [24, 24],
+    fallbackNote: 'procedural stoneDraw canvas stays when file missing',
+  },
+  {
+    key: 'gravel043',
+    albedo: 'vendor/ambientcg/Gravel043/Gravel043_1K-JPG_Color.jpg',
+    normal: 'vendor/ambientcg/Gravel043/Gravel043_1K-JPG_NormalGL.jpg',
+    rough: 'vendor/ambientcg/Gravel043/Gravel043_1K-JPG_Roughness.jpg',
+    hasRough: true, hasNormal: true,
+    materialKeys: ['gravel'],
+    repeat: [6, 6],
+    fallbackNote: 'procedural gravelDraw canvas stays when file missing',
+  },
+  {
+    key: 'bark006',
+    albedo: 'vendor/ambientcg/Bark006/Bark006_1K-JPG_Color.jpg',
+    normal: 'vendor/ambientcg/Bark006/Bark006_1K-JPG_NormalGL.jpg',
+    rough: 'vendor/ambientcg/Bark006/Bark006_1K-JPG_Roughness.jpg',
+    hasRough: true, hasNormal: true,
+    materialKeys: ['trunk'],
+    repeat: [1, 2],
+    fallbackNote: 'procedural darkWood canvas stays when file missing',
+  },
+  {
+    key: 'woodsiding013',
+    albedo: 'vendor/ambientcg/WoodSiding013/WoodSiding013_1K-JPG_Color.jpg',
+    normal: 'vendor/ambientcg/WoodSiding013/WoodSiding013_1K-JPG_NormalGL.jpg',
+    rough: 'vendor/ambientcg/WoodSiding013/WoodSiding013_1K-JPG_Roughness.jpg',
+    hasRough: true, hasNormal: true,
+    materialKeys: ['woodAged', 'wood'],
+    repeat: [2, 1],
+    fallbackNote: 'procedural woodDrawTone canvases stay when file missing (woodNew untouched: new vs aged history)',
+  },
+  {
+    key: 'plaster001',
+    albedo: 'vendor/ambientcg/Plaster001/Plaster001_1K-JPG_Color.jpg',
+    normal: 'vendor/ambientcg/Plaster001/Plaster001_1K-JPG_NormalGL.jpg',
+    rough: 'vendor/ambientcg/Plaster001/Plaster001_1K-JPG_Roughness.jpg',
+    hasRough: true, hasNormal: true,
+    materialKeys: ['plaster'],
+    repeat: [1, 1],
+    fallbackNote: 'procedural plasterDraw canvas stays when file missing',
+  },
+  {
+    key: 'roofing006',
+    albedo: 'vendor/ambientcg/RoofingTiles006/RoofingTiles006_1K-JPG_Color.jpg',
+    normal: 'vendor/ambientcg/RoofingTiles006/RoofingTiles006_1K-JPG_NormalGL.jpg',
+    rough: 'vendor/ambientcg/RoofingTiles006/RoofingTiles006_1K-JPG_Roughness.jpg',
+    hasRough: true, hasNormal: true,
+    materialKeys: ['roofTile', 'roofTileAlt'],
+    repeat: [4, 4],
+    fallbackNote: 'flat ceramic + shared noise stay when file missing',
+  },
   // Reserved: Poly Haven drops (unreachable slice 1 — paths reserved, no fetch attempted).
   // { key: 'polyhaven_bark', albedo: 'vendor/polyhaven/bark_albedo.jpg', ... }
 ];
@@ -68,8 +150,32 @@ export function scannedAlbedoFor(key) {
   return s ? s.albedo : null;
 }
 
+// Path set for direct PBR wiring (terrain mesh uses this; missing files → nulls).
+export function scannedSetFor(key) {
+  const s = SCANNED_SLOTS.find((x) => x.key === key);
+  if (!s) return null;
+  return { albedo: s.albedo || null, normal: s.normal || null, rough: s.rough || null };
+}
+
+// HDRI presets for lighting.js PMREM (MIT, three.js examples). Weather/night
+// switching across presets lands in a later slice; default is warm/clear.
+export const HDRI_PRESETS = {
+  clear: 'vendor/hdri/venice_sunset_1k.hdr',
+  overcast: 'vendor/hdri/quarry_01_1k.hdr',
+  night: 'vendor/hdri/moonless_golf_1k.hdr',
+};
+
 function prepAlbedo(tex, repeat) {
   tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  if (repeat) tex.repeat.set(repeat[0], repeat[1]);
+  tex.anisotropy = 4;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function prepData(tex, repeat) {
+  tex.colorSpace = THREE.NoColorSpace; // normal/roughness stay linear
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   if (repeat) tex.repeat.set(repeat[0], repeat[1]);
   tex.anisotropy = 4;
@@ -86,29 +192,65 @@ export function applyScannedMaterials(M, opts = {}) {
   for (const slot of SCANNED_SLOTS) {
     if (slot.key.startsWith('polyhaven')) continue; // reserved, no file yet
     try {
-      const tex = loader.load(
+      // Assign INSIDE onLoad: a missing file never leaves a broken texture bound.
+      loader.load(
         slot.albedo,
-        () => { /* loaded: configured below synchronously for determinism of flags */ },
+        (tex) => {
+          prepAlbedo(tex, slot.repeat);
+          let touched = false;
+          for (const mk of slot.materialKeys) {
+            const mat = M[mk];
+            if (mat) {
+              // inherit repeat from the procedural map it replaces when present
+              if (mat.map && mat.map.repeat) tex.repeat.copy(mat.map.repeat);
+              mat.map = tex;
+              mat.needsUpdate = true;
+              touched = true;
+            }
+          }
+          if (touched) { if (!out.applied.includes(slot.key)) out.applied.push(slot.key); }
+          else if (!out.missing.includes(slot.key)) out.missing.push(slot.key);
+        },
         undefined,
         () => {
           if (!out.missing.includes(slot.key)) out.missing.push(slot.key);
           if (opts.verbose) console.warn(`[vendor] missing scan, fallback kept: ${slot.key} <- ${slot.albedo}`);
         },
       );
-      prepAlbedo(tex, slot.repeat);
-      let touched = false;
-      for (const mk of slot.materialKeys) {
-        const mat = M[mk];
-        if (mat) {
-          // inherit repeat from the procedural map it replaces when present
-          if (mat.map && mat.map.repeat) tex.repeat.copy(mat.map.repeat);
-          mat.map = tex;
-          mat.needsUpdate = true;
-          touched = true;
-        }
+      // PBR data maps (linear): wire normal + roughness when the slot has them.
+      if (slot.normal) {
+        try {
+          loader.load(slot.normal,
+            (ntex) => {
+              prepData(ntex, slot.repeat);
+              for (const mk of slot.materialKeys) {
+                const mat = M[mk];
+                if (mat && 'normalMap' in mat) {
+                  if (mat.normalMap && mat.normalMap.repeat) ntex.repeat.copy(mat.normalMap.repeat);
+                  mat.normalMap = ntex;
+                  if ('normalScale' in mat && mat.normalScale) mat.normalScale.setScalar(0.7);
+                  mat.needsUpdate = true;
+                }
+              }
+            }, undefined, () => {});
+        } catch (e) { /* fallback kept */ }
       }
-      if (touched) out.applied.push(slot.key);
-      else if (!out.missing.includes(slot.key)) out.missing.push(slot.key);
+      if (slot.rough) {
+        try {
+          loader.load(slot.rough,
+            (rtex) => {
+              prepData(rtex, slot.repeat);
+              for (const mk of slot.materialKeys) {
+                const mat = M[mk];
+                if (mat && 'roughnessMap' in mat) {
+                  mat.roughnessMap = rtex;
+                  if ('roughness' in mat) mat.roughness = 1.0;
+                  mat.needsUpdate = true;
+                }
+              }
+            }, undefined, () => {});
+        } catch (e) { /* fallback kept */ }
+      }
     } catch (e) {
       if (!out.missing.includes(slot.key)) out.missing.push(slot.key);
     }

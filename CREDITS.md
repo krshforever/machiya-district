@@ -19,3 +19,5 @@ All files vendored under `assets/vendor/` (zero runtime CDN). Full URLs + licens
 ## Not vendored (unreachable from build box)
 
 - Poly Haven (api + dl 522/timeout) — reserved `assets/vendor/polyhaven/` slots in `src/vendor.js`; drop files later with zero code change.
+- HDRI: venice_sunset / quarry / moonless_golf 1K HDRIs — Mr.doob / three.js contributors — MIT (three.js examples).
+- PBR textures: Ground037, Moss002, Rock035, Gravel043, Bark006, WoodSiding013, Plaster001, RoofingTiles006 — AmbientCG (Lennart Demes) — CC0.

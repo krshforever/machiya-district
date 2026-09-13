@@ -97,6 +97,8 @@ window.__world = { stats: registryStats }; // live getter (registry fills as sys
 // P2.2/P2.3: terrain ring + river (district plateau untouched, base plane stays)
 const terrain = buildTerrain();
 scene.add(terrain.group);
+// Slice 2: terrain ground joins the rain wet-darkening registry (mud + wet soil)
+if (terrain.mesh && terrain.mesh.material && M.registerWet) M.registerWet(terrain.mesh.material);
 const river = buildRiver();
 scene.add(river.group);
 // P2.4/P2.5: road network + ecological planting (both read the same terrain

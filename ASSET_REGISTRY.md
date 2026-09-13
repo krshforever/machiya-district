@@ -50,3 +50,19 @@ Processing note (honest): no local PIL/ImageMagick exec in this slice environmen
 - tris ≤ 500k (was ~492k — pools REPLACE 380 blobs; net must go DOWN; far-blob counts cut first if threatened).
 - draws DOWN (was 3434, target <2200 — pools ≈ 10 InstancedMesh draws replace 3 far-forest draws with richer per-species representation; net scene draws decrease via fewer total instances + no shadow casting on far pools).
 - determinism: reload-twice identical; new streams only (forest salts 201–207); existing instance IDs never reordered.
+
+## Slice 2 — P0-1 + HDRI/PBR (2026-09-13)
+WORLD_SEED=20260912 unchanged. Poly Haven dead (000, skipped). All URLs verified HTTP 200 before listing.
+### HDRI (MIT — Mr.doob / three.js contributors, three.js examples)
+- public/vendor/hdri/venice_sunset_1k.hdr — https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/equirectangular/venice_sunset_1k.hdr — 1397783 B — warm/clear default
+- public/vendor/hdri/quarry_01_1k.hdr — https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/equirectangular/quarry_01_1k.hdr — 1477951 B — overcast preset
+- public/vendor/hdri/moonless_golf_1k.hdr — https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/equirectangular/moonless_golf_1k.hdr — 1672754 B — night preset
+### PBR CC0 (AmbientCG, 1K-JPG; vendored Color+NormalGL+Roughness only, AO/height/displacement skipped)
+- public/vendor/ambientcg/Ground037/… — https://ambientcg.com/get?file=Ground037_1K-JPG.zip — 10574958 B — forest soil
+- public/vendor/ambientcg/Moss002/… — https://ambientcg.com/get?file=Moss002_1K-JPG.zip — 10391949 B — moss
+- public/vendor/ambientcg/Rock035/… — https://ambientcg.com/get?file=Rock035_1K-JPG.zip — 9547643 B — rock
+- public/vendor/ambientcg/Gravel043/… — https://ambientcg.com/get?file=Gravel043_1K-JPG.zip — 10405844 B — gravel
+- public/vendor/ambientcg/Bark006/… — https://ambientcg.com/get?file=Bark006_1K-JPG.zip — 9549383 B — bark
+- public/vendor/ambientcg/WoodSiding013/… — https://ambientcg.com/get?file=WoodSiding013_1K-JPG.zip — 7049367 B — weathered wood
+- public/vendor/ambientcg/Plaster001/… — https://ambientcg.com/get?file=Plaster001_1K-JPG.zip — 7414156 B — plaster
+- public/vendor/ambientcg/RoofingTiles006/… — https://ambientcg.com/get?file=RoofingTiles006_1K-JPG.zip — 6660039 B — roof tile

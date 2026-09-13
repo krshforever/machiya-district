@@ -172,9 +172,12 @@ export function createWeather({ scene, pondWaterMats = [], wetMats = [], heightF
       wetness += ((target === 'rainy' ? k : target === 'rainy' ? 1 : (cur === 'rainy' ? 1 - k : 0)) - wetness) * Math.min(1, dt * 0.8);
       void wGoal2;
       for (const m of wetMats) {
-        if (!m?.userData?._dry) { m.userData._dry = { r: m.roughness ?? 0.85, e: m.envMapIntensity ?? 1 }; }
+        // Slice 2: snapshot dry state once (roughness + env + albedo).
+        if (!m?.userData?._dry) { m.userData._dry = { r: m.roughness ?? 0.85, e: m.envMapIntensity ?? 1, c: m.color ? m.color.clone() : null }; }
         m.roughness = THREE.MathUtils.lerp(m.userData._dry.r, Math.min(0.25, m.userData._dry.r * 0.4), wetness);
         m.envMapIntensity = THREE.MathUtils.lerp(m.userData._dry.e, m.userData._dry.e + 0.9, wetness);
+        // rain-darkened surfaces: albedo drops toward 55% at full wet (restores dry on dry-out)
+        if (m.userData._dry.c && m.color) m.color.copy(m.userData._dry.c).multiplyScalar(THREE.MathUtils.lerp(1, 0.55, wetness));
       }
       pudM.opacity = wetness * 0.8;
       // basins grow/shrink with wetness (accumulation + drying, lagged by wetness lerp)
