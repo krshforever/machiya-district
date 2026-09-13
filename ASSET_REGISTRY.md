@@ -66,3 +66,15 @@ WORLD_SEED=20260912 unchanged. Poly Haven dead (000, skipped). All URLs verified
 - public/vendor/ambientcg/WoodSiding013/… — https://ambientcg.com/get?file=WoodSiding013_1K-JPG.zip — 7049367 B — weathered wood
 - public/vendor/ambientcg/Plaster001/… — https://ambientcg.com/get?file=Plaster001_1K-JPG.zip — 7414156 B — plaster
 - public/vendor/ambientcg/RoofingTiles006/… — https://ambientcg.com/get?file=RoofingTiles006_1K-JPG.zip — 6660039 B — roof tile
+
+## Slice V1 — village truth textures via Commons (2026-09-13, branch forge3d-rebuild)
+Poly Haven mirrors found on Wikimedia Commons (same CC0 scans, working door). All HTTP 200.
+### Bark PBR CC0 (Rob Tuytel via Poly Haven / Charlotte Baglioni via Poly Haven)
+- public/vendor/commons/bark_pbr/bark_brown_diff.jpg — https://commons.wikimedia.org/wiki/File:Bark_brown_01_diff_8k_(Rob_Tuytel_via_Poly_Haven).png — CC0 — generic bark albedo
+- public/vendor/commons/bark_pbr/bark_brown_nor_1k.png — .../File:Bark_brown_01_nor_gl_8k_(Rob_Tuytel_via_Poly_Haven).png — CC0 — bark normal (OpenGL)
+- public/vendor/commons/bark_pbr/bark_brown_rough_1k.png — .../File:Bark_brown_01_rough_8k_(Rob_Tuytel_via_Poly_Haven).png — CC0 — bark roughness
+- public/vendor/commons/zelkova_bark/zelkova_bark.jpg — https://commons.wikimedia.org/wiki/File:Japanese_zelkova_bark_(Charlotte_Baglioni_via_Poly_Haven).png — CC0 — KEYAKI bark (village tree)
+### Village surfaces (CC BY-SA, credited in CREDITS.md)
+- public/vendor/commons/thatch/thatch_hamptonne_1k.jpg — https://commons.wikimedia.org/wiki/File:Thatch_1,_Hamptonne,_Jersey.jpg — CC BY-SA 4.0 — thatch roof
+- public/vendor/commons/castle_stone/marugame_wall_1k.jpg — https://commons.wikimedia.org/wiki/File:Stone_wall_of_Marugame_Castle_04.jpg — CC BY-SA 4.0 — cut-stone wall (kura foundation, town walls)
+- public/vendor/commons/planks/wood_planks_1k.jpg — https://commons.wikimedia.org/wiki/File:Wooden_Planks_Texture.jpg — CC BY-SA 3.0 — wood planks (engawa, doors, floors)
