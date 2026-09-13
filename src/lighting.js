@@ -38,6 +38,11 @@ export function buildLighting(scene, renderer) {
   // must stay INSIDE the sky dome (r=70 left peaks sticking out past the
   // sky, reading as a hard white wall). Still inside camera far=160.
   const sky = new THREE.Mesh(new THREE.SphereGeometry(150, 24, 16), skyMat);
+  // Sky-dome fix: never culled (one draw) + main.js centers it on the camera
+  // every frame. A static origin-centered dome gets its far hemisphere clipped
+  // by the far plane whenever the camera sits off-center (orbit ≤48m + r150
+  // dome vs far 160/500) → the clipped region showed clear-color BLACK.
+  sky.frustumCulled = false;
   scene.add(sky);
 
   // --- fog: warm haze ---
@@ -121,5 +126,5 @@ export function buildLighting(scene, renderer) {
       }, undefined, () => { /* procedural env stays */ });
   } catch (e) { /* procedural env stays */ }
 
-  return { sun, hemi, skyMat };
+  return { sun, hemi, skyMat, sky };
 }

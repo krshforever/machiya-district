@@ -88,7 +88,23 @@ const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
   }
 }
 
+// 8. Sky-dome black-region fix: dome unculled + returned + camera-followed.
+{
+  const l = read('src/lighting.js');
+  ok(l.includes('frustumCulled = false'), 'sky dome never culled');
+  ok(/return\s*\{\s*sun,\s*hemi,\s*skyMat,\s*sky\s*\}/.test(l), 'lighting returns sky mesh');
+  const m = read('src/main.js');
+  ok(m.includes('sky.position.copy(camera.position)'), 'dome centered on camera per frame (no far-plane clip → no black sky)');
+}
+
 // 7. Runtime determinism: no Math.random() in src/ (ships to browser).
+{
+  const l = read('src/lighting.js');
+  ok(l.includes('frustumCulled = false'), 'sky dome never culled');
+  ok(/return\s*\{\s*sun,\s*hemi,\s*skyMat,\s*sky\s*\}/.test(l), 'lighting returns sky mesh');
+  const m = read('src/main.js');
+  ok(m.includes('sky.position.copy(camera.position)'), 'dome centered on camera per frame (no far-plane clip → no black sky)');
+}
 // (tools/ excluded: dev-only gate scripts mention the string in their checks.)
 {
   const hits = [];

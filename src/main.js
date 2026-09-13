@@ -70,7 +70,7 @@ const M = buildMaterials();
 applyScannedMaterials(M); // CC0 albedo over procedural maps; missing files keep fallback
 setSharedM(M); // district builders reuse the textured mothership registry
 
-const { sun, hemi, skyMat } = buildLighting(scene, renderer);
+const { sun, hemi, skyMat, sky } = buildLighting(scene, renderer);
 
 // --- hero machiya: v1 modules grouped, upgraded, placed on its town lot ---
 const heroGroup = new THREE.Group();
@@ -581,6 +581,9 @@ if (det && det.group && !det.group.userData.__householdPushed) {
   // OrbitControls must not run in explore mode (update() stomps the FP camera
   // even with controls.enabled=false); cinematics.js guards its own call too.
   if (!explore.enabled) controls.update();
+  // Sky-dome fix: dome centered on camera every frame (see lighting.js) —
+  // its far hemisphere can never cross the far plane → no black regions.
+  if (sky) sky.position.copy(camera.position);
   // dev-overlay camera readout (ui.js reads window.__cam if present, else shows 'n/a')
   try {
     window.__cam = {
